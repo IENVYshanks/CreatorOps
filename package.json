@@ -1,29 +1,35 @@
 {
-  "name": "creator-ops-platform",
+  "name": "creatorpilot",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "engines": {
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "concurrently --kill-others --names backend,frontend --prefix-colors blue,magenta \"npm run dev --workspace=@creator-ops/backend\" \"npm run dev --workspace=@creator-ops/frontend\"",
+    "dev": "npm run build --workspace=@creatorpilot/contracts && concurrently --kill-others --names backend,frontend --prefix-colors blue,magenta \"npm run dev --workspace=@creatorpilot/backend\" \"npm run dev --workspace=@creatorpilot/frontend\"",
     "clean": "npm run clean --workspaces --if-present",
-    "build": "npm run build --workspace=@creator-ops/backend && npm run build --workspace=@creator-ops/frontend",
-    "start": "concurrently --kill-others --names backend,frontend --prefix-colors blue,magenta \"npm run start --workspace=@creator-ops/backend\" \"npm run start --workspace=@creator-ops/frontend\"",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "lint": "eslint apps",
-    "format": "prettier --write apps package.json tsconfig.base.json eslint.config.js .prettierrc.json README.md",
-    "format:check": "prettier --check apps package.json tsconfig.base.json eslint.config.js .prettierrc.json README.md"
+    "build": "npm run build --workspace=@creatorpilot/contracts && npm run build --workspace=@creatorpilot/backend && npm run build --workspace=@creatorpilot/frontend",
+    "start": "concurrently --kill-others --names backend,frontend --prefix-colors blue,magenta \"npm run start --workspace=@creatorpilot/backend\" \"npm run start --workspace=@creatorpilot/frontend\"",
+    "typecheck": "npm run build --workspace=@creatorpilot/contracts && npm run typecheck --workspace=@creatorpilot/backend && npm run typecheck --workspace=@creatorpilot/frontend",
+    "test": "npm run build --workspace=@creatorpilot/contracts && npm run test --workspace=@creatorpilot/contracts && npm run test --workspace=@creatorpilot/backend && npm run test --workspace=@creatorpilot/frontend",
+    "test:integration": "npm run test:integration --workspace=@creatorpilot/backend",
+    "db:migrate": "npm run db:migrate --workspace=@creatorpilot/backend",
+    "infra:up": "docker compose --file infra/compose/docker-compose.yml up --detach",
+    "infra:down": "docker compose --file infra/compose/docker-compose.yml down",
+    "lint": "eslint apps packages",
+    "format": "prettier --write apps packages package.json tsconfig.base.json eslint.config.js .prettierrc.json README.md",
+    "format:check": "prettier --check apps packages package.json tsconfig.base.json eslint.config.js .prettierrc.json README.md"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "concurrently": "^9.2.1",
     "eslint": "^10.11.0",
+    "jsdom": "^29.1.1",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.1"

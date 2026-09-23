@@ -1,6 +1,6 @@
 ---
 name: creator-ops-engineering
-description: "Use when changing this TypeScript-first Creator Operations Platform: require a change proposal and explicit user approval before edits, preserve modular boundaries and development/production parity, add tests for every API and pipeline, and verify repository-wide compatibility after updates."
+description: "Use when changing this TypeScript-first Creator Operations Platform: work on one explicitly named behavior at a time, require a change proposal and explicit user approval before edits, preserve modular boundaries and development/production parity, add focused tests, and verify compatibility after updates."
 user-invocable: true
 ---
 
@@ -19,6 +19,16 @@ Use this skill for every implementation, bug fix, refactor, migration, API chang
 - Prefer platform-neutral interfaces for object storage, secrets, email, notifications, and LLM providers. Production implementations may use managed services, while development uses contract-compatible local services.
 
 ## Non-negotiable workflow
+
+### 0. Work on one task at a time
+
+- Treat each user-approved task as one explicitly named behavior or capability, such as registration, login, logout, session validation, workspace creation, or workspace listing.
+- Do not combine adjacent features merely because they belong to the same module. For example, a login task must not also change registration or logout unless the user explicitly expands and approves the scope.
+- Limit inspection, proposals, implementation, documentation, and tests to the selected behavior and the minimum shared dependencies required to implement it safely.
+- If the selected behavior requires a shared contract, schema, configuration, or infrastructure change, include only the smallest necessary change and identify it explicitly in the proposal.
+- When an unrelated defect, refactor, security improvement, or follow-up opportunity is discovered, report it separately without implementing it. Obtain explicit approval before treating it as a new task.
+- Completing one task does not authorize starting the next task. Stop after the completion report and wait for the user to select or approve another task.
+- Prefer focused validation for the selected behavior during implementation. Run broader regression checks only after the focused checks pass, and do not use broader validation as permission to modify unrelated code.
 
 ### 1. Inspect before proposing
 
@@ -45,7 +55,7 @@ Do not infer approval from the original request alone. If the user has not appro
 
 ### 3. Implement in small, reversible slices
 
-- Keep each edit focused on one module or one explicit contract change.
+- Keep each edit focused on the single approved behavior and its explicitly approved supporting changes.
 - Preserve existing behavior unless the approved proposal changes it.
 - Never modify unrelated files or hide unrelated formatting churn.
 - After the first substantive edit, immediately run the narrowest relevant test, type check, lint check, or contract check before making more edits.

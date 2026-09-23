@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type ApiState = 'checking' | 'online' | 'offline';
 
@@ -43,6 +44,14 @@ export default function HomePage() {
         <p className={`status status--${apiState}`} aria-live="polite">
           API status: {apiState}
         </p>
+        <div className="hero-actions">
+          <Link className="primary-link" href="/signup">
+            Create account
+          </Link>
+          <Link className="secondary-link" href="/login">
+            Sign in
+          </Link>
+        </div>
       </section>
     </main>
   );

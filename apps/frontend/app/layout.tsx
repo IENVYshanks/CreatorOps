@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import './styles.css';
 
 export const metadata: Metadata = {
-  title: 'Creator Operations Platform',
-  description: 'Frontend for the Creator Operations Platform',
+  title: 'CreatorPilot',
+  description: 'Plan, publish, and understand creator content from one place',
 };
 
 export default function RootLayout({

@@ -28,4 +28,8 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    ...tseslint.configs.disableTypeChecked,
+    files: ['apps/backend/drizzle.config.ts'],
+  },
 );

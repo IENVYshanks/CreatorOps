@@ -16,6 +16,8 @@ describe('Express application', () => {
     const response = await request(createApp()).get('/missing');
 
     expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'Not Found' });
+    expect(response.body).toEqual({
+      error: { code: 'NOT_FOUND', message: 'Route not found' },
+    });
   });
 });
