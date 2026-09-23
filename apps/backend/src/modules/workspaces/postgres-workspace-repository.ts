@@ -1,11 +1,14 @@
 import type { WorkspaceSummary } from '@creatorpilot/contracts';
 import { eq } from 'drizzle-orm';
 
-import type { AppDatabase } from '../../../database/client.js';
-import type { WorkspaceRepository } from '../application/ports.js';
-import { workspaceMemberships, workspaces } from './schema.js';
+import type { AppDatabase } from '../../database/client.js';
+import type { WorkspaceRepository } from './workspace-repository.js';
+import {
+  workspaceMemberships,
+  workspaces,
+} from './workspace-database-schema.js';
 
-export class DrizzleWorkspaceRepository implements WorkspaceRepository {
+export class PostgresWorkspaceRepository implements WorkspaceRepository {
   public constructor(private readonly database: AppDatabase) {}
 
   public createOwnedWorkspace(

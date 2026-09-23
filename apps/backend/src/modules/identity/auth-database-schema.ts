@@ -8,6 +8,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+// PostgreSQL tables owned by the identity module.
 export const users = pgTable(
   'users',
   {

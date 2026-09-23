@@ -6,10 +6,10 @@ import {
 } from '@creatorpilot/contracts';
 import { Router, type RequestHandler } from 'express';
 
-import { parseRequestBody } from '../../../shared/validation.js';
-import type { WorkspaceService } from '../application/workspace-service.js';
+import { parseRequestBody } from '../../shared/validation.js';
+import type { WorkspaceService } from './workspace-service.js';
 
-export function createWorkspaceRouter(
+export function createWorkspaceRoutes(
   workspaceService: WorkspaceService,
   requireAuthentication: RequestHandler,
   trustedOrigin: RequestHandler,

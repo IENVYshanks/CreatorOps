@@ -3,27 +3,27 @@ import pino from 'pino';
 import { createApp } from './app.js';
 import { loadEnvironment } from './config.js';
 import { createDatabaseConnection } from './database/client.js';
-import { IdentityService } from './modules/identity/application/identity-service.js';
-import { ArgonPasswordHasher } from './modules/identity/infrastructure/argon-password-hasher.js';
-import { DrizzleIdentityRepository } from './modules/identity/infrastructure/drizzle-identity-repository.js';
-import { SecureSessionTokens } from './modules/identity/infrastructure/secure-session-tokens.js';
-import { WorkspaceService } from './modules/workspaces/application/workspace-service.js';
-import { DrizzleWorkspaceRepository } from './modules/workspaces/infrastructure/drizzle-workspace-repository.js';
+import { ArgonPasswordHasher } from './modules/identity/argon2-password-hasher.js';
+import { AuthService } from './modules/identity/auth-service.js';
+import { PostgresAuthRepository } from './modules/identity/postgres-auth-repository.js';
+import { SecureSessionTokens } from './modules/identity/secure-session-tokens.js';
+import { PostgresWorkspaceRepository } from './modules/workspaces/postgres-workspace-repository.js';
+import { WorkspaceService } from './modules/workspaces/workspace-service.js';
 
 const environment = loadEnvironment();
 const logger = pino({ level: environment.LOG_LEVEL });
 const databaseConnection = createDatabaseConnection(environment.DATABASE_URL);
-const identityService = new IdentityService(
-  new DrizzleIdentityRepository(databaseConnection.database),
+const authService = new AuthService(
+  new PostgresAuthRepository(databaseConnection.database),
   new ArgonPasswordHasher(),
   new SecureSessionTokens(),
   environment.SESSION_TTL_HOURS,
 );
 const workspaceService = new WorkspaceService(
-  new DrizzleWorkspaceRepository(databaseConnection.database),
+  new PostgresWorkspaceRepository(databaseConnection.database),
 );
 const app = createApp({
-  identityService,
+  authService,
   workspaceService,
   applicationOrigin: environment.APP_ORIGIN,
   requireTrustedOrigin: environment.NODE_ENV === 'production',

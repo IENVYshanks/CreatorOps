@@ -7,12 +7,12 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { z, ZodError } from 'zod';
 
-import type { IdentityService } from './modules/identity/application/identity-service.js';
-import { createAuthRouter } from './modules/identity/http/auth-router.js';
-import { createRequireAuthentication } from './modules/identity/http/require-authentication.js';
-import type { SessionCookieConfiguration } from './modules/identity/http/session-cookie.js';
-import type { WorkspaceService } from './modules/workspaces/application/workspace-service.js';
-import { createWorkspaceRouter } from './modules/workspaces/http/workspace-router.js';
+import { createAuthRoutes } from './modules/identity/auth-routes.js';
+import type { AuthService } from './modules/identity/auth-service.js';
+import { createRequireAuthentication } from './modules/identity/authentication-middleware.js';
+import type { SessionCookieOptions } from './modules/identity/session-cookie.js';
+import { createWorkspaceRoutes } from './modules/workspaces/workspace-routes.js';
+import type { WorkspaceService } from './modules/workspaces/workspace-service.js';
 import { ApplicationError } from './shared/application-error.js';
 import { createTrustedOriginMiddleware } from './shared/trusted-origin.js';
 
@@ -72,11 +72,11 @@ const errorHandler: ErrorRequestHandler = (
 };
 
 export interface AppFeatures {
-  identityService: IdentityService;
+  authService: AuthService;
   workspaceService: WorkspaceService;
   applicationOrigin: string;
   requireTrustedOrigin: boolean;
-  cookie: SessionCookieConfiguration;
+  cookie: SessionCookieOptions;
 }
 
 export function createApp(features?: AppFeatures): Express {
@@ -95,20 +95,20 @@ export function createApp(features?: AppFeatures): Express {
       features.requireTrustedOrigin,
     );
     const requireAuthentication = createRequireAuthentication(
-      features.identityService,
+      features.authService,
       features.cookie,
     );
 
     app.use(
       '/auth',
-      createAuthRouter(features.identityService, {
+      createAuthRoutes(features.authService, {
         cookie: features.cookie,
         trustedOrigin,
       }),
     );
     app.use(
       '/workspaces',
-      createWorkspaceRouter(
+      createWorkspaceRoutes(
         features.workspaceService,
         requireAuthentication,
         trustedOrigin,

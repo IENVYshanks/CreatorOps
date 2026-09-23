@@ -5,8 +5,8 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDatabaseConnection, type DatabaseConnection } from './client.js';
-import { DrizzleIdentityRepository } from '../modules/identity/infrastructure/drizzle-identity-repository.js';
-import { DrizzleWorkspaceRepository } from '../modules/workspaces/infrastructure/drizzle-workspace-repository.js';
+import { PostgresAuthRepository } from '../modules/identity/postgres-auth-repository.js';
+import { PostgresWorkspaceRepository } from '../modules/workspaces/postgres-workspace-repository.js';
 
 describe('PostgreSQL repositories', () => {
   let connection: DatabaseConnection;
@@ -43,7 +43,7 @@ describe('PostgreSQL repositories', () => {
   });
 
   it('persists users and resolves only live sessions', async () => {
-    const repository = new DrizzleIdentityRepository(connection.database);
+    const repository = new PostgresAuthRepository(connection.database);
     const user = await repository.createUser('creator@example.com', 'hash');
 
     expect(user).toMatchObject({ email: 'creator@example.com' });
@@ -71,8 +71,8 @@ describe('PostgreSQL repositories', () => {
   });
 
   it('creates an owner membership atomically and isolates tenants', async () => {
-    const identities = new DrizzleIdentityRepository(connection.database);
-    const workspaces = new DrizzleWorkspaceRepository(connection.database);
+    const identities = new PostgresAuthRepository(connection.database);
+    const workspaces = new PostgresWorkspaceRepository(connection.database);
     const firstUser = await identities.createUser('first@example.com', 'hash');
     const secondUser = await identities.createUser(
       'second@example.com',

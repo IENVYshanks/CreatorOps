@@ -1,12 +1,12 @@
 import type { AuthenticatedUser } from '@creatorpilot/contracts';
 import { and, eq, gt } from 'drizzle-orm';
 
-import type { AppDatabase } from '../../../database/client.js';
-import type { IdentityRepository } from '../application/ports.js';
-import type { StoredUser } from '../domain/identity.js';
-import { sessions, users } from './schema.js';
+import type { AppDatabase } from '../../database/client.js';
+import type { AuthRepository } from './auth-dependencies.js';
+import type { StoredUser } from './auth-types.js';
+import { sessions, users } from './auth-database-schema.js';
 
-export class DrizzleIdentityRepository implements IdentityRepository {
+export class PostgresAuthRepository implements AuthRepository {
   public constructor(private readonly database: AppDatabase) {}
 
   public async createUser(

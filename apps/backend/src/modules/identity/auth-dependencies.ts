@@ -1,8 +1,8 @@
 import type { AuthenticatedUser } from '@creatorpilot/contracts';
 
-import type { StoredUser } from '../domain/identity.js';
+import type { StoredUser } from './auth-types.js';
 
-export interface IdentityRepository {
+export interface AuthRepository {
   createUser(
     email: string,
     passwordHash: string,

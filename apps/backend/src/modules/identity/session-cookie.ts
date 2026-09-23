@@ -1,14 +1,14 @@
 import { parseCookie, stringifySetCookie } from 'cookie';
 import type { Request, Response } from 'express';
 
-export interface SessionCookieConfiguration {
+export interface SessionCookieOptions {
   name: string;
   secure: boolean;
 }
 
 export function readSessionToken(
   request: Request,
-  configuration: SessionCookieConfiguration,
+  configuration: SessionCookieOptions,
 ): string | undefined {
   const cookies = parseCookie(request.headers.cookie ?? '');
   return cookies[configuration.name];
@@ -16,7 +16,7 @@ export function readSessionToken(
 
 export function setSessionCookie(
   response: Response,
-  configuration: SessionCookieConfiguration,
+  configuration: SessionCookieOptions,
   token: string,
   expiresAt: Date,
 ): void {
@@ -37,7 +37,7 @@ export function setSessionCookie(
 
 export function clearSessionCookie(
   response: Response,
-  configuration: SessionCookieConfiguration,
+  configuration: SessionCookieOptions,
 ): void {
   response.append(
     'Set-Cookie',

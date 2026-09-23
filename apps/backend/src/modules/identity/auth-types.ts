@@ -9,7 +9,7 @@ export interface CreatedSession {
   expiresAt: Date;
 }
 
-export interface AuthResult {
+export interface AuthenticationResult {
   user: AuthenticatedUser;
   session: CreatedSession;
 }

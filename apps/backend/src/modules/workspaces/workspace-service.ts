@@ -3,7 +3,7 @@ import type {
   WorkspaceSummary,
 } from '@creatorpilot/contracts';
 
-import type { WorkspaceRepository } from './ports.js';
+import type { WorkspaceRepository } from './workspace-repository.js';
 
 export class WorkspaceService {
   public constructor(private readonly repository: WorkspaceRepository) {}

@@ -4,23 +4,23 @@ import type {
   RegisterRequest,
 } from '@creatorpilot/contracts';
 
-import { ApplicationError } from '../../../shared/application-error.js';
-import type { AuthResult } from '../domain/identity.js';
+import { ApplicationError } from '../../shared/application-error.js';
+import type { AuthenticationResult } from './auth-types.js';
 import type {
-  IdentityRepository,
+  AuthRepository,
   PasswordHasher,
   SessionTokenManager,
-} from './ports.js';
+} from './auth-dependencies.js';
 
-export class IdentityService {
+export class AuthService {
   public constructor(
-    private readonly repository: IdentityRepository,
+    private readonly repository: AuthRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly sessionTokens: SessionTokenManager,
     private readonly sessionTtlHours: number,
   ) {}
 
-  public async register(input: RegisterRequest): Promise<AuthResult> {
+  public async register(input: RegisterRequest): Promise<AuthenticationResult> {
     const passwordHash = await this.passwordHasher.hash(input.password);
     const user = await this.repository.createUser(input.email, passwordHash);
 
@@ -35,7 +35,7 @@ export class IdentityService {
     return this.createAuthenticatedSession(user);
   }
 
-  public async login(input: LoginRequest): Promise<AuthResult> {
+  public async login(input: LoginRequest): Promise<AuthenticationResult> {
     const user = await this.repository.findUserByEmail(input.email);
 
     if (!user) {
@@ -78,7 +78,7 @@ export class IdentityService {
 
   private async createAuthenticatedSession(
     user: AuthenticatedUser,
-  ): Promise<AuthResult> {
+  ): Promise<AuthenticationResult> {
     const token = this.sessionTokens.create();
     const expiresAt = new Date(
       Date.now() + this.sessionTtlHours * 60 * 60 * 1_000,

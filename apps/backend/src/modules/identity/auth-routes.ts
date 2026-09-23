@@ -7,23 +7,23 @@ import {
 import { Router, type RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
 
-import { parseRequestBody } from '../../../shared/validation.js';
-import type { IdentityService } from '../application/identity-service.js';
-import { createRequireAuthentication } from './require-authentication.js';
+import { parseRequestBody } from '../../shared/validation.js';
+import type { AuthService } from './auth-service.js';
+import { createRequireAuthentication } from './authentication-middleware.js';
 import {
   clearSessionCookie,
   readSessionToken,
-  type SessionCookieConfiguration,
+  type SessionCookieOptions,
   setSessionCookie,
 } from './session-cookie.js';
 
 export interface AuthRouterSecurity {
-  cookie: SessionCookieConfiguration;
+  cookie: SessionCookieOptions;
   trustedOrigin: RequestHandler;
 }
 
-export function createAuthRouter(
-  identityService: IdentityService,
+export function createAuthRoutes(
+  authService: AuthService,
   security: AuthRouterSecurity,
 ): Router {
   const router = Router();
@@ -34,7 +34,7 @@ export function createAuthRouter(
     legacyHeaders: false,
   });
   const requireAuthentication = createRequireAuthentication(
-    identityService,
+    authService,
     security.cookie,
   );
 
@@ -44,7 +44,7 @@ export function createAuthRouter(
     authenticationRateLimit,
     async (request, response) => {
       const input = parseRequestBody(request, registerRequestSchema);
-      const result = await identityService.register(input);
+      const result = await authService.register(input);
 
       setSessionCookie(
         response,
@@ -64,7 +64,7 @@ export function createAuthRouter(
     authenticationRateLimit,
     async (request, response) => {
       const input = parseRequestBody(request, loginRequestSchema);
-      const result = await identityService.login(input);
+      const result = await authService.login(input);
 
       setSessionCookie(
         response,
@@ -80,7 +80,7 @@ export function createAuthRouter(
     const token = readSessionToken(request, security.cookie);
 
     if (token) {
-      await identityService.logout(token);
+      await authService.logout(token);
     }
 
     clearSessionCookie(response, security.cookie);

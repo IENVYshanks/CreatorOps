@@ -1,14 +1,14 @@
 import type { RequestHandler } from 'express';
 
-import type { IdentityService } from '../application/identity-service.js';
+import type { AuthService } from './auth-service.js';
 import {
   readSessionToken,
-  type SessionCookieConfiguration,
+  type SessionCookieOptions,
 } from './session-cookie.js';
 
 export function createRequireAuthentication(
-  identityService: IdentityService,
-  cookie: SessionCookieConfiguration,
+  authService: AuthService,
+  cookie: SessionCookieOptions,
 ): RequestHandler {
   return async (request, response, next) => {
     try {
@@ -24,7 +24,7 @@ export function createRequireAuthentication(
         return;
       }
 
-      response.locals.user = await identityService.authenticate(token);
+      response.locals.user = await authService.authenticate(token);
       response.locals.sessionToken = token;
       next();
     } catch (error: unknown) {

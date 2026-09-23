@@ -14,15 +14,15 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from './app.js';
-import { IdentityService } from './modules/identity/application/identity-service.js';
 import type {
-  IdentityRepository,
+  AuthRepository,
   PasswordHasher,
   SessionTokenManager,
-} from './modules/identity/application/ports.js';
-import type { StoredUser } from './modules/identity/domain/identity.js';
-import type { WorkspaceRepository } from './modules/workspaces/application/ports.js';
-import { WorkspaceService } from './modules/workspaces/application/workspace-service.js';
+} from './modules/identity/auth-dependencies.js';
+import { AuthService } from './modules/identity/auth-service.js';
+import type { StoredUser } from './modules/identity/auth-types.js';
+import type { WorkspaceRepository } from './modules/workspaces/workspace-repository.js';
+import { WorkspaceService } from './modules/workspaces/workspace-service.js';
 
 describe('authentication and workspace API', () => {
   it('registers a user and creates a revocable cookie session', async () => {
@@ -143,15 +143,15 @@ describe('authentication and workspace API', () => {
 });
 
 function createTestApp(requireTrustedOrigin = false) {
-  const identityService = new IdentityService(
-    new InMemoryIdentityRepository(),
+  const authService = new AuthService(
+    new InMemoryAuthRepository(),
     new TestPasswordHasher(),
     new TestSessionTokens(),
     24,
   );
 
   return createApp({
-    identityService,
+    authService,
     workspaceService: new WorkspaceService(new InMemoryWorkspaceRepository()),
     applicationOrigin: 'https://app.example.com',
     requireTrustedOrigin,
@@ -159,7 +159,7 @@ function createTestApp(requireTrustedOrigin = false) {
   });
 }
 
-class InMemoryIdentityRepository implements IdentityRepository {
+class InMemoryAuthRepository implements AuthRepository {
   private readonly users = new Map<string, StoredUser>();
   private readonly sessions = new Map<
     string,
