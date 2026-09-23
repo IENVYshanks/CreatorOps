@@ -10,6 +10,8 @@ import { z, ZodError } from 'zod';
 import { createAuthRoutes } from './modules/identity/auth-routes.js';
 import type { AuthService } from './modules/identity/auth-service.js';
 import { createRequireAuthentication } from './modules/identity/authentication-middleware.js';
+import { createProfileRoutes } from './modules/identity/profile-routes.js';
+import type { ProfileService } from './modules/identity/profile-service.js';
 import type { SessionCookieOptions } from './modules/identity/session-cookie.js';
 import { createWorkspaceRoutes } from './modules/workspaces/workspace-routes.js';
 import type { WorkspaceService } from './modules/workspaces/workspace-service.js';
@@ -77,6 +79,7 @@ export interface AppFeatures {
   applicationOrigin: string;
   requireTrustedOrigin: boolean;
   cookie: SessionCookieOptions;
+  profileService?: ProfileService;
 }
 
 export function createApp(features?: AppFeatures): Express {
@@ -114,6 +117,13 @@ export function createApp(features?: AppFeatures): Express {
         trustedOrigin,
       ),
     );
+
+    if (features.profileService) {
+      app.use(
+        '/profile',
+        createProfileRoutes(features.profileService, requireAuthentication),
+      );
+    }
   }
 
   app.use(notFoundHandler);

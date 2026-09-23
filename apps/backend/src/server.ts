@@ -6,6 +6,8 @@ import { createDatabaseConnection } from './database/client.js';
 import { ArgonPasswordHasher } from './modules/identity/argon2-password-hasher.js';
 import { AuthService } from './modules/identity/auth-service.js';
 import { PostgresAuthRepository } from './modules/identity/postgres-auth-repository.js';
+import { PostgresProfileRepository } from './modules/identity/postgres-profile-repository.js';
+import { ProfileService } from './modules/identity/profile-service.js';
 import { SecureSessionTokens } from './modules/identity/secure-session-tokens.js';
 import { PostgresWorkspaceRepository } from './modules/workspaces/postgres-workspace-repository.js';
 import { WorkspaceService } from './modules/workspaces/workspace-service.js';
@@ -22,9 +24,13 @@ const authService = new AuthService(
 const workspaceService = new WorkspaceService(
   new PostgresWorkspaceRepository(databaseConnection.database),
 );
+const profileService = new ProfileService(
+  new PostgresProfileRepository(databaseConnection.database),
+);
 const app = createApp({
   authService,
   workspaceService,
+  profileService,
   applicationOrigin: environment.APP_ORIGIN,
   requireTrustedOrigin: environment.NODE_ENV === 'production',
   cookie: {

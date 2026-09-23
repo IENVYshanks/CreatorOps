@@ -47,7 +47,7 @@ Database migrations are explicit release operations; API and frontend startup ne
 - `npm run build` creates all production builds.
 - `npm start` starts both production applications after a successful build.
 
-## Authentication and workspace API
+## Authentication, profile, and workspace API
 
 | Method | Path             | Purpose                                     |
 | ------ | ---------------- | ------------------------------------------- |
@@ -55,6 +55,7 @@ Database migrations are explicit release operations; API and frontend startup ne
 | `POST` | `/auth/login`    | Authenticate and create a new session       |
 | `POST` | `/auth/logout`   | Revoke the current session                  |
 | `GET`  | `/auth/session`  | Return the authenticated user               |
+| `GET`  | `/profile`       | Return the authenticated user's profile     |
 | `POST` | `/workspaces`    | Create a workspace with the caller as owner |
 | `GET`  | `/workspaces`    | List only the caller's workspaces           |
 | `GET`  | `/health`        | Report API health                           |
