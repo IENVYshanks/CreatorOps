@@ -1,6 +1,7 @@
 import { parseCookie, stringifySetCookie } from 'cookie';
 import type { Request, Response } from 'express';
 
+// Cookie settings shared by authentication routes and middleware.
 export interface SessionCookieOptions {
   name: string;
   secure: boolean;

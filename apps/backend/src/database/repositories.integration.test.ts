@@ -5,7 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDatabaseConnection, type DatabaseConnection } from './client.js';
-import { PostgresAuthRepository } from '../modules/identity/postgres-auth-repository.js';
+import { PostgresAuthRepository } from '../modules/identity/database/postgres-auth-repository.js';
 import { PostgresWorkspaceRepository } from '../modules/workspaces/postgres-workspace-repository.js';
 
 describe('PostgreSQL repositories', () => {
@@ -91,5 +91,52 @@ describe('PostgreSQL repositories', () => {
     expect(created.role).toBe('owner');
     expect(await workspaces.listForUser(firstUser.id)).toEqual([created]);
     expect(await workspaces.listForUser(secondUser.id)).toEqual([]);
+    expect(
+      await workspaces.findForUser(firstUser.id, created.id),
+    ).toMatchObject(created);
+    expect(
+      await workspaces.findForUser(secondUser.id, created.id),
+    ).toBeUndefined();
+    expect(
+      await workspaces.listMembersForUser(firstUser.id, created.id),
+    ).toEqual([
+      expect.objectContaining({
+        userId: firstUser.id,
+        email: firstUser.email,
+        role: 'owner',
+      }),
+    ]);
+    expect(
+      await workspaces.listMembersForUser(secondUser.id, created.id),
+    ).toBeUndefined();
+
+    const addedMember = await workspaces.addMember(
+      created.id,
+      secondUser.id,
+      secondUser.email,
+    );
+    expect(addedMember).toMatchObject({
+      userId: secondUser.id,
+      email: secondUser.email,
+      role: 'member',
+    });
+    expect(
+      await workspaces.addMember(created.id, secondUser.id, secondUser.email),
+    ).toBeUndefined();
+    expect(await workspaces.listForUser(secondUser.id)).toEqual([
+      expect.objectContaining({ id: created.id, role: 'member' }),
+    ]);
+    expect(
+      await workspaces.listMembersForUser(firstUser.id, created.id),
+    ).toHaveLength(2);
+    expect(await workspaces.removeMember(created.id, firstUser.id)).toBe(false);
+    expect(await workspaces.removeMember(created.id, secondUser.id)).toBe(true);
+    expect(await workspaces.removeMember(created.id, secondUser.id)).toBe(
+      false,
+    );
+    expect(await workspaces.listForUser(secondUser.id)).toEqual([]);
+    expect(
+      await workspaces.listMembersForUser(firstUser.id, created.id),
+    ).toHaveLength(1);
   });
 });

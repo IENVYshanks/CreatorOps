@@ -7,7 +7,7 @@ import {
 import { Router, type RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
 
-import { parseRequestBody } from '../../shared/validation.js';
+import { parseRequestBody } from '../../../shared/validation.js';
 import type { AuthService } from './auth-service.js';
 import { createRequireAuthentication } from './authentication-middleware.js';
 import {
@@ -15,7 +15,7 @@ import {
   readSessionToken,
   type SessionCookieOptions,
   setSessionCookie,
-} from './session-cookie.js';
+} from '../sessions/session-cookie.js';
 
 export interface AuthRouterSecurity {
   cookie: SessionCookieOptions;

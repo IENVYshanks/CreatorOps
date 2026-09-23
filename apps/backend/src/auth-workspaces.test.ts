@@ -2,12 +2,17 @@ import { randomUUID } from 'node:crypto';
 
 import type {
   AuthenticatedUser,
+  WorkspaceDetails,
+  WorkspaceMember,
   WorkspaceSummary,
 } from '@creatorpilot/contracts';
 import {
   apiErrorResponseSchema,
   authSessionResponseSchema,
   workspaceListResponseSchema,
+  workspaceDetailsSchema,
+  workspaceMemberListResponseSchema,
+  workspaceMemberSchema,
   workspaceSummarySchema,
 } from '@creatorpilot/contracts';
 import request from 'supertest';
@@ -18,9 +23,9 @@ import type {
   AuthRepository,
   PasswordHasher,
   SessionTokenManager,
-} from './modules/identity/auth-dependencies.js';
-import { AuthService } from './modules/identity/auth-service.js';
-import type { StoredUser } from './modules/identity/auth-types.js';
+} from './modules/identity/authentication/auth-dependencies.js';
+import { AuthService } from './modules/identity/authentication/auth-service.js';
+import type { StoredUser } from './modules/identity/authentication/auth-types.js';
 import type { WorkspaceRepository } from './modules/workspaces/workspace-repository.js';
 import { WorkspaceService } from './modules/workspaces/workspace-service.js';
 
@@ -110,9 +115,10 @@ describe('authentication and workspace API', () => {
       .post('/workspaces')
       .send({ name: 'First Studio' });
     expect(created.status).toBe(201);
-    expect(workspaceSummarySchema.parse(created.body as unknown).role).toBe(
-      'owner',
+    const createdWorkspace = workspaceSummarySchema.parse(
+      created.body as unknown,
     );
+    expect(createdWorkspace.role).toBe('owner');
 
     const firstList = await firstUser.get('/workspaces');
     const secondList = await secondUser.get('/workspaces');
@@ -122,6 +128,244 @@ describe('authentication and workspace API', () => {
     expect(
       workspaceListResponseSchema.parse(secondList.body as unknown).workspaces,
     ).toEqual([]);
+
+    expect(
+      (await request(app).get(`/workspaces/${createdWorkspace.id}`)).status,
+    ).toBe(401);
+
+    const details = await firstUser.get(`/workspaces/${createdWorkspace.id}`);
+    expect(details.status).toBe(200);
+    expect(workspaceDetailsSchema.parse(details.body as unknown)).toMatchObject(
+      {
+        ...createdWorkspace,
+      },
+    );
+
+    expect(
+      (await request(app).get(`/workspaces/${createdWorkspace.id}/members`))
+        .status,
+    ).toBe(401);
+
+    const memberList = await firstUser.get(
+      `/workspaces/${createdWorkspace.id}/members`,
+    );
+    expect(memberList.status).toBe(200);
+    const members = workspaceMemberListResponseSchema.parse(
+      memberList.body as unknown,
+    ).members;
+    expect(members).toHaveLength(1);
+    expect(members[0]).toMatchObject({ role: 'owner' });
+
+    const membersHiddenFromNonMember = await secondUser.get(
+      `/workspaces/${createdWorkspace.id}/members`,
+    );
+    expect(membersHiddenFromNonMember.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(membersHiddenFromNonMember.body as unknown)
+        .error.code,
+    ).toBe('WORKSPACE_NOT_FOUND');
+
+    const invalidMemberWorkspaceId = await firstUser.get(
+      '/workspaces/not-a-uuid/members',
+    );
+    expect(invalidMemberWorkspaceId.status).toBe(400);
+
+    const hiddenFromNonMember = await secondUser.get(
+      `/workspaces/${createdWorkspace.id}`,
+    );
+    expect(hiddenFromNonMember.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(hiddenFromNonMember.body as unknown).error
+        .code,
+    ).toBe('WORKSPACE_NOT_FOUND');
+
+    const unknownWorkspace = await firstUser.get(`/workspaces/${randomUUID()}`);
+    expect(unknownWorkspace.status).toBe(404);
+
+    const invalidWorkspaceId = await firstUser.get('/workspaces/not-a-uuid');
+    expect(invalidWorkspaceId.status).toBe(400);
+    expect(
+      apiErrorResponseSchema.parse(invalidWorkspaceId.body as unknown).error
+        .code,
+    ).toBe('VALIDATION_ERROR');
+  });
+
+  it('allows only an owner to add an existing user as a workspace member', async () => {
+    const app = createTestApp();
+    const owner = request.agent(app);
+    const member = request.agent(app);
+    const outsider = request.agent(app);
+
+    await owner.post('/auth/register').send({
+      email: 'owner@example.com',
+      password: 'owner secure password',
+    });
+    await member.post('/auth/register').send({
+      email: 'member@example.com',
+      password: 'member secure password',
+    });
+    await outsider.post('/auth/register').send({
+      email: 'outsider@example.com',
+      password: 'outsider secure password',
+    });
+
+    const created = workspaceSummarySchema.parse(
+      (await owner.post('/workspaces').send({ name: 'Collaborative Studio' }))
+        .body as unknown,
+    );
+    const memberPath = `/workspaces/${created.id}/members`;
+
+    expect(
+      (
+        await request(app)
+          .post(memberPath)
+          .send({ email: 'member@example.com' })
+      ).status,
+    ).toBe(401);
+
+    const invalid = await owner.post(memberPath).send({ email: 'invalid' });
+    expect(invalid.status).toBe(400);
+    expect(
+      apiErrorResponseSchema.parse(invalid.body as unknown).error.code,
+    ).toBe('VALIDATION_ERROR');
+
+    const unknownUser = await owner
+      .post(memberPath)
+      .send({ email: 'missing@example.com' });
+    expect(unknownUser.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(unknownUser.body as unknown).error.code,
+    ).toBe('USER_NOT_FOUND');
+
+    const added = await owner
+      .post(memberPath)
+      .send({ email: ' Member@Example.COM ' });
+    expect(added.status).toBe(201);
+    expect(workspaceMemberSchema.parse(added.body as unknown)).toMatchObject({
+      email: 'member@example.com',
+      role: 'member',
+    });
+
+    const duplicate = await owner
+      .post(memberPath)
+      .send({ email: 'member@example.com' });
+    expect(duplicate.status).toBe(409);
+    expect(
+      apiErrorResponseSchema.parse(duplicate.body as unknown).error.code,
+    ).toBe('WORKSPACE_MEMBER_EXISTS');
+
+    const memberForbidden = await member
+      .post(memberPath)
+      .send({ email: 'outsider@example.com' });
+    expect(memberForbidden.status).toBe(403);
+    expect(
+      apiErrorResponseSchema.parse(memberForbidden.body as unknown).error.code,
+    ).toBe('WORKSPACE_OWNER_REQUIRED');
+
+    const workspaceHidden = await outsider
+      .post(memberPath)
+      .send({ email: 'member@example.com' });
+    expect(workspaceHidden.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(workspaceHidden.body as unknown).error.code,
+    ).toBe('WORKSPACE_NOT_FOUND');
+
+    const listed = await owner.get(memberPath);
+    expect(
+      workspaceMemberListResponseSchema.parse(listed.body as unknown).members,
+    ).toHaveLength(2);
+  });
+
+  it('allows only an owner to remove a non-owner workspace member', async () => {
+    const app = createTestApp();
+    const owner = request.agent(app);
+    const member = request.agent(app);
+    const outsider = request.agent(app);
+
+    const ownerUser = authSessionResponseSchema.parse(
+      (
+        await owner.post('/auth/register').send({
+          email: 'owner@example.com',
+          password: 'owner secure password',
+        })
+      ).body as unknown,
+    ).user;
+    const memberUser = authSessionResponseSchema.parse(
+      (
+        await member.post('/auth/register').send({
+          email: 'member@example.com',
+          password: 'member secure password',
+        })
+      ).body as unknown,
+    ).user;
+    const outsiderUser = authSessionResponseSchema.parse(
+      (
+        await outsider.post('/auth/register').send({
+          email: 'outsider@example.com',
+          password: 'outsider secure password',
+        })
+      ).body as unknown,
+    ).user;
+
+    const workspace = workspaceSummarySchema.parse(
+      (await owner.post('/workspaces').send({ name: 'Removal Studio' }))
+        .body as unknown,
+    );
+    const memberPath = `/workspaces/${workspace.id}/members`;
+    await owner.post(memberPath).send({ email: memberUser.email });
+
+    expect(
+      (await request(app).delete(`${memberPath}/${memberUser.id}`)).status,
+    ).toBe(401);
+
+    const invalid = await owner.delete(`${memberPath}/not-a-uuid`);
+    expect(invalid.status).toBe(400);
+    expect(
+      apiErrorResponseSchema.parse(invalid.body as unknown).error.code,
+    ).toBe('VALIDATION_ERROR');
+
+    const memberForbidden = await member.delete(
+      `${memberPath}/${outsiderUser.id}`,
+    );
+    expect(memberForbidden.status).toBe(403);
+    expect(
+      apiErrorResponseSchema.parse(memberForbidden.body as unknown).error.code,
+    ).toBe('WORKSPACE_OWNER_REQUIRED');
+
+    const workspaceHidden = await outsider.delete(
+      `${memberPath}/${memberUser.id}`,
+    );
+    expect(workspaceHidden.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(workspaceHidden.body as unknown).error.code,
+    ).toBe('WORKSPACE_NOT_FOUND');
+
+    const ownerProtected = await owner.delete(`${memberPath}/${ownerUser.id}`);
+    expect(ownerProtected.status).toBe(409);
+    expect(
+      apiErrorResponseSchema.parse(ownerProtected.body as unknown).error.code,
+    ).toBe('WORKSPACE_OWNER_CANNOT_BE_REMOVED');
+
+    const unknownMember = await owner.delete(`${memberPath}/${randomUUID()}`);
+    expect(unknownMember.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(unknownMember.body as unknown).error.code,
+    ).toBe('WORKSPACE_MEMBER_NOT_FOUND');
+
+    const removed = await owner.delete(`${memberPath}/${memberUser.id}`);
+    expect(removed.status).toBe(204);
+    expect(removed.text).toBe('');
+
+    const repeated = await owner.delete(`${memberPath}/${memberUser.id}`);
+    expect(repeated.status).toBe(404);
+    expect(
+      apiErrorResponseSchema.parse(repeated.body as unknown).error.code,
+    ).toBe('WORKSPACE_MEMBER_NOT_FOUND');
+
+    const listed = await owner.get(memberPath);
+    expect(
+      workspaceMemberListResponseSchema.parse(listed.body as unknown).members,
+    ).toHaveLength(1);
   });
 
   it('rejects state changes from an untrusted production origin', async () => {
@@ -139,12 +383,54 @@ describe('authentication and workspace API', () => {
     expect(
       apiErrorResponseSchema.parse(response.body as unknown).error.code,
     ).toBe('UNTRUSTED_ORIGIN');
+
+    const owner = request.agent(app);
+    await owner
+      .post('/auth/register')
+      .set('Origin', 'https://app.example.com')
+      .send({
+        email: 'owner@example.com',
+        password: 'owner secure password',
+      });
+    await request(app)
+      .post('/auth/register')
+      .set('Origin', 'https://app.example.com')
+      .send({
+        email: 'member@example.com',
+        password: 'member secure password',
+      });
+    const workspace = workspaceSummarySchema.parse(
+      (
+        await owner
+          .post('/workspaces')
+          .set('Origin', 'https://app.example.com')
+          .send({ name: 'Protected Studio' })
+      ).body as unknown,
+    );
+
+    const addMember = await owner
+      .post(`/workspaces/${workspace.id}/members`)
+      .set('Origin', 'https://attacker.example')
+      .send({ email: 'member@example.com' });
+    expect(addMember.status).toBe(403);
+    expect(
+      apiErrorResponseSchema.parse(addMember.body as unknown).error.code,
+    ).toBe('UNTRUSTED_ORIGIN');
+
+    const removeMember = await owner
+      .delete(`/workspaces/${workspace.id}/members/${randomUUID()}`)
+      .set('Origin', 'https://attacker.example');
+    expect(removeMember.status).toBe(403);
+    expect(
+      apiErrorResponseSchema.parse(removeMember.body as unknown).error.code,
+    ).toBe('UNTRUSTED_ORIGIN');
   });
 });
 
 function createTestApp(requireTrustedOrigin = false) {
+  const authRepository = new InMemoryAuthRepository();
   const authService = new AuthService(
-    new InMemoryAuthRepository(),
+    authRepository,
     new TestPasswordHasher(),
     new TestSessionTokens(),
     24,
@@ -152,7 +438,10 @@ function createTestApp(requireTrustedOrigin = false) {
 
   return createApp({
     authService,
-    workspaceService: new WorkspaceService(new InMemoryWorkspaceRepository()),
+    workspaceService: new WorkspaceService(
+      new InMemoryWorkspaceRepository(),
+      authRepository,
+    ),
     applicationOrigin: 'https://app.example.com',
     requireTrustedOrigin,
     cookie: { name: 'creator_session', secure: false },
@@ -238,7 +527,8 @@ class TestSessionTokens implements SessionTokenManager {
 }
 
 class InMemoryWorkspaceRepository implements WorkspaceRepository {
-  private readonly workspaces: (WorkspaceSummary & { userId: string })[] = [];
+  private readonly workspaces: (WorkspaceDetails & { userId: string })[] = [];
+  private readonly members: (WorkspaceMember & { workspaceId: string })[] = [];
 
   public createOwnedWorkspace(
     userId: string,
@@ -249,16 +539,129 @@ class InMemoryWorkspaceRepository implements WorkspaceRepository {
       name,
       role: 'owner' as const,
       userId,
+      createdAt: new Date().toISOString(),
     };
     this.workspaces.push(workspace);
     return Promise.resolve(workspace);
   }
 
   public listForUser(userId: string): Promise<WorkspaceSummary[]> {
-    return Promise.resolve(
-      this.workspaces
-        .filter((workspace) => workspace.userId === userId)
-        .map(({ id, name, role }) => ({ id, name, role })),
+    const owned = this.workspaces
+      .filter((workspace) => workspace.userId === userId)
+      .map(({ id, name, role }) => ({ id, name, role }));
+    const joined = this.members
+      .filter((member) => member.userId === userId)
+      .flatMap((member) => {
+        const workspace = this.workspaces.find(
+          (candidate) => candidate.id === member.workspaceId,
+        );
+
+        return workspace
+          ? [{ id: workspace.id, name: workspace.name, role: member.role }]
+          : [];
+      });
+
+    return Promise.resolve([...owned, ...joined]);
+  }
+
+  public findForUser(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceDetails | undefined> {
+    const workspace = this.workspaces.find(
+      (candidate) => candidate.id === workspaceId,
     );
+
+    if (!workspace) {
+      return Promise.resolve(undefined);
+    }
+
+    const membership = this.members.find(
+      (candidate) =>
+        candidate.workspaceId === workspaceId && candidate.userId === userId,
+    );
+    const role =
+      workspace.userId === userId ? workspace.role : membership?.role;
+
+    if (!role) {
+      return Promise.resolve(undefined);
+    }
+
+    const { id, name, createdAt } = workspace;
+    return Promise.resolve({ id, name, role, createdAt });
+  }
+
+  public listMembersForUser(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMember[] | undefined> {
+    const workspace = this.workspaces.find(
+      (candidate) => candidate.id === workspaceId,
+    );
+
+    const canView =
+      workspace?.userId === userId ||
+      this.members.some(
+        (member) =>
+          member.workspaceId === workspaceId && member.userId === userId,
+      );
+
+    if (!workspace || !canView) {
+      return Promise.resolve(undefined);
+    }
+
+    return Promise.resolve([
+      {
+        userId: workspace.userId,
+        email: `member-${workspace.userId}@example.com`,
+        role: workspace.role,
+        joinedAt: workspace.createdAt,
+      },
+      ...this.members.filter((member) => member.workspaceId === workspaceId),
+    ]);
+  }
+
+  public addMember(
+    workspaceId: string,
+    userId: string,
+    email: string,
+  ): Promise<WorkspaceMember | undefined> {
+    const workspace = this.workspaces.find(
+      (candidate) => candidate.id === workspaceId,
+    );
+    const alreadyExists =
+      workspace?.userId === userId ||
+      this.members.some(
+        (member) =>
+          member.workspaceId === workspaceId && member.userId === userId,
+      );
+
+    if (!workspace || alreadyExists) {
+      return Promise.resolve(undefined);
+    }
+
+    const member = {
+      workspaceId,
+      userId,
+      email,
+      role: 'member' as const,
+      joinedAt: new Date().toISOString(),
+    };
+    this.members.push(member);
+    return Promise.resolve(member);
+  }
+
+  public removeMember(workspaceId: string, userId: string): Promise<boolean> {
+    const membershipIndex = this.members.findIndex(
+      (member) =>
+        member.workspaceId === workspaceId && member.userId === userId,
+    );
+
+    if (membershipIndex === -1) {
+      return Promise.resolve(false);
+    }
+
+    this.members.splice(membershipIndex, 1);
+    return Promise.resolve(true);
   }
 }

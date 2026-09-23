@@ -53,6 +53,16 @@ describe('Dashboard', () => {
     expect(
       screen.getByText('Signed in as creator@example.com'),
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View profile' })).toHaveAttribute(
+      'href',
+      '/profile',
+    );
+    expect(
+      screen.getByRole('link', { name: /Creator Studio/ }),
+    ).toHaveAttribute(
+      'href',
+      '/workspaces/7a53cb19-a18b-4fd4-bb5b-c9b881f90d41',
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

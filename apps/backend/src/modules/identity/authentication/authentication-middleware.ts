@@ -4,7 +4,7 @@ import type { AuthService } from './auth-service.js';
 import {
   readSessionToken,
   type SessionCookieOptions,
-} from './session-cookie.js';
+} from '../sessions/session-cookie.js';
 
 export function createRequireAuthentication(
   authService: AuthService,

@@ -1,6 +1,6 @@
 import { argon2id, hash, verify } from 'argon2';
 
-import type { PasswordHasher } from './auth-dependencies.js';
+import type { PasswordHasher } from '../authentication/auth-dependencies.js';
 
 export class ArgonPasswordHasher implements PasswordHasher {
   public hash(password: string): Promise<string> {

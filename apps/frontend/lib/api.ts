@@ -1,13 +1,22 @@
 import {
+  type AddWorkspaceMemberRequest,
   apiErrorResponseSchema,
   authSessionResponseSchema,
   type AuthSessionResponse,
   type CreateWorkspaceRequest,
   type LoginRequest,
+  type ProfileResponse,
+  profileResponseSchema,
   type RegisterRequest,
   type WorkspaceListResponse,
+  type WorkspaceDetails,
+  type WorkspaceMemberListResponse,
+  type WorkspaceMember,
   type WorkspaceSummary,
+  workspaceDetailsSchema,
   workspaceListResponseSchema,
+  workspaceMemberSchema,
+  workspaceMemberListResponseSchema,
   workspaceSummarySchema,
 } from '@creatorpilot/contracts';
 import type { ZodType } from 'zod';
@@ -47,11 +56,49 @@ export function getSession(signal?: AbortSignal): Promise<AuthSessionResponse> {
   });
 }
 
+export function getProfile(signal?: AbortSignal): Promise<ProfileResponse> {
+  return request('/profile', profileResponseSchema, {
+    ...(signal ? { signal } : {}),
+  });
+}
+
 export function listWorkspaces(
   signal?: AbortSignal,
 ): Promise<WorkspaceListResponse> {
   return request('/workspaces', workspaceListResponseSchema, {
     ...(signal ? { signal } : {}),
+  });
+}
+
+export function getWorkspace(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<WorkspaceDetails> {
+  return request(`/workspaces/${workspaceId}`, workspaceDetailsSchema, {
+    ...(signal ? { signal } : {}),
+  });
+}
+
+export function listWorkspaceMembers(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<WorkspaceMemberListResponse> {
+  return request(
+    `/workspaces/${workspaceId}/members`,
+    workspaceMemberListResponseSchema,
+    {
+      ...(signal ? { signal } : {}),
+    },
+  );
+}
+
+export function addWorkspaceMember(
+  workspaceId: string,
+  input: AddWorkspaceMemberRequest,
+): Promise<WorkspaceMember> {
+  return request(`/workspaces/${workspaceId}/members`, workspaceMemberSchema, {
+    method: 'POST',
+    body: JSON.stringify(input),
   });
 }
 

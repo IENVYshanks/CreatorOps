@@ -3,26 +3,28 @@ import pino from 'pino';
 import { createApp } from './app.js';
 import { loadEnvironment } from './config.js';
 import { createDatabaseConnection } from './database/client.js';
-import { ArgonPasswordHasher } from './modules/identity/argon2-password-hasher.js';
-import { AuthService } from './modules/identity/auth-service.js';
-import { PostgresAuthRepository } from './modules/identity/postgres-auth-repository.js';
-import { PostgresProfileRepository } from './modules/identity/postgres-profile-repository.js';
-import { ProfileService } from './modules/identity/profile-service.js';
-import { SecureSessionTokens } from './modules/identity/secure-session-tokens.js';
+import { ArgonPasswordHasher } from './modules/identity/passwords/argon2-password-hasher.js';
+import { AuthService } from './modules/identity/authentication/auth-service.js';
+import { PostgresAuthRepository } from './modules/identity/database/postgres-auth-repository.js';
+import { PostgresProfileRepository } from './modules/identity/database/postgres-profile-repository.js';
+import { ProfileService } from './modules/identity/profiles/profile-service.js';
+import { SecureSessionTokens } from './modules/identity/sessions/secure-session-tokens.js';
 import { PostgresWorkspaceRepository } from './modules/workspaces/postgres-workspace-repository.js';
 import { WorkspaceService } from './modules/workspaces/workspace-service.js';
 
 const environment = loadEnvironment();
 const logger = pino({ level: environment.LOG_LEVEL });
 const databaseConnection = createDatabaseConnection(environment.DATABASE_URL);
+const authRepository = new PostgresAuthRepository(databaseConnection.database);
 const authService = new AuthService(
-  new PostgresAuthRepository(databaseConnection.database),
+  authRepository,
   new ArgonPasswordHasher(),
   new SecureSessionTokens(),
   environment.SESSION_TTL_HOURS,
 );
 const workspaceService = new WorkspaceService(
   new PostgresWorkspaceRepository(databaseConnection.database),
+  authRepository,
 );
 const profileService = new ProfileService(
   new PostgresProfileRepository(databaseConnection.database),

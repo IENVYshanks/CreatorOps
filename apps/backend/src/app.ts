@@ -7,12 +7,12 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { z, ZodError } from 'zod';
 
-import { createAuthRoutes } from './modules/identity/auth-routes.js';
-import type { AuthService } from './modules/identity/auth-service.js';
-import { createRequireAuthentication } from './modules/identity/authentication-middleware.js';
-import { createProfileRoutes } from './modules/identity/profile-routes.js';
-import type { ProfileService } from './modules/identity/profile-service.js';
-import type { SessionCookieOptions } from './modules/identity/session-cookie.js';
+import { createAuthRoutes } from './modules/identity/authentication/auth-routes.js';
+import type { AuthService } from './modules/identity/authentication/auth-service.js';
+import { createRequireAuthentication } from './modules/identity/authentication/authentication-middleware.js';
+import { createProfileRoutes } from './modules/identity/profiles/profile-routes.js';
+import type { ProfileService } from './modules/identity/profiles/profile-service.js';
+import type { SessionCookieOptions } from './modules/identity/sessions/session-cookie.js';
 import { createWorkspaceRoutes } from './modules/workspaces/workspace-routes.js';
 import type { WorkspaceService } from './modules/workspaces/workspace-service.js';
 import { ApplicationError } from './shared/application-error.js';

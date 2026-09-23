@@ -1,9 +1,9 @@
 import type { UserProfile } from '@creatorpilot/contracts';
 import { eq } from 'drizzle-orm';
 
-import type { AppDatabase } from '../../database/client.js';
-import { users } from './auth-database-schema.js';
-import type { ProfileRepository } from './profile-repository.js';
+import type { AppDatabase } from '../../../database/client.js';
+import type { ProfileRepository } from '../profiles/profile-repository.js';
+import { users } from './identity-database-schema.js';
 
 export class PostgresProfileRepository implements ProfileRepository {
   public constructor(private readonly database: AppDatabase) {}

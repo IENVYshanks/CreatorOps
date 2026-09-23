@@ -8,7 +8,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import { users } from '../identity/auth-database-schema.js';
+import { users } from '../identity/database/identity-database-schema.js';
 
 // PostgreSQL tables owned by the workspaces module.
 export const workspaceRole = pgEnum('workspace_role', ['owner', 'member']);

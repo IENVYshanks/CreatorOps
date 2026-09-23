@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import type { SessionTokenManager } from './auth-dependencies.js';
+import type { SessionTokenManager } from '../authentication/auth-dependencies.js';
 
 export class SecureSessionTokens implements SessionTokenManager {
   public create(): string {

@@ -4,7 +4,7 @@ import type {
   RegisterRequest,
 } from '@creatorpilot/contracts';
 
-import { ApplicationError } from '../../shared/application-error.js';
+import { ApplicationError } from '../../../shared/application-error.js';
 import type { AuthenticationResult } from './auth-types.js';
 import type {
   AuthRepository,

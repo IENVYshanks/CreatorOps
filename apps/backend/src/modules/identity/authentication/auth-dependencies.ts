@@ -2,6 +2,7 @@ import type { AuthenticatedUser } from '@creatorpilot/contracts';
 
 import type { StoredUser } from './auth-types.js';
 
+// Storage operations required by authentication use cases.
 export interface AuthRepository {
   createUser(
     email: string,

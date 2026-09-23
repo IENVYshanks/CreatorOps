@@ -5,17 +5,17 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { ApplicationError } from './shared/application-error.js';
-import { AuthService } from './modules/identity/auth-service.js';
+import { AuthService } from './modules/identity/authentication/auth-service.js';
 import type {
   AuthRepository,
   PasswordHasher,
   SessionTokenManager,
-} from './modules/identity/auth-dependencies.js';
-import type { StoredUser } from './modules/identity/auth-types.js';
-import { createRequireAuthentication } from './modules/identity/authentication-middleware.js';
-import { createProfileRoutes } from './modules/identity/profile-routes.js';
-import type { ProfileRepository } from './modules/identity/profile-repository.js';
-import { ProfileService } from './modules/identity/profile-service.js';
+} from './modules/identity/authentication/auth-dependencies.js';
+import type { StoredUser } from './modules/identity/authentication/auth-types.js';
+import { createRequireAuthentication } from './modules/identity/authentication/authentication-middleware.js';
+import { createProfileRoutes } from './modules/identity/profiles/profile-routes.js';
+import type { ProfileRepository } from './modules/identity/profiles/profile-repository.js';
+import { ProfileService } from './modules/identity/profiles/profile-service.js';
 
 const userId = '4e075cf1-a65a-4f1e-b62f-c4a3cb4bf23d';
 const profile: UserProfile = {

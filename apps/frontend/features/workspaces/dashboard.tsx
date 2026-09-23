@@ -4,6 +4,7 @@ import type {
   AuthenticatedUser,
   WorkspaceSummary,
 } from '@creatorpilot/contracts';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type SyntheticEvent, useEffect, useState } from 'react';
 
@@ -95,9 +96,14 @@ export function Dashboard() {
           <h1>Your workspaces</h1>
           <p className="muted">Signed in as {user?.email}</p>
         </div>
-        <button className="secondary-button" onClick={() => void signOut()}>
-          Sign out
-        </button>
+        <div className="dashboard-actions">
+          <Link className="secondary-link" href="/profile">
+            View profile
+          </Link>
+          <button className="secondary-button" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       {error ? (
@@ -108,10 +114,14 @@ export function Dashboard() {
 
       <section className="workspace-grid" aria-label="Workspaces">
         {workspaces.map((workspace) => (
-          <article className="workspace-card" key={workspace.id}>
+          <Link
+            className="workspace-card workspace-card-link"
+            href={`/workspaces/${workspace.id}`}
+            key={workspace.id}
+          >
             <span>{workspace.role}</span>
             <h2>{workspace.name}</h2>
-          </article>
+          </Link>
         ))}
       </section>
 

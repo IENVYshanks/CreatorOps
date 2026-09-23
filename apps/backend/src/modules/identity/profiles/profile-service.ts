@@ -1,6 +1,6 @@
 import type { UserProfile } from '@creatorpilot/contracts';
 
-import { ApplicationError } from '../../shared/application-error.js';
+import { ApplicationError } from '../../../shared/application-error.js';
 import type { ProfileRepository } from './profile-repository.js';
 
 export class ProfileService {

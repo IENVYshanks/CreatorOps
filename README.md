@@ -9,7 +9,13 @@ apps/
   frontend/             Next.js presentation and browser interaction
   backend/              Express API and domain modules
     src/modules/
-      identity/         users, passwords, and revocable sessions
+      identity/
+        authentication/ registration, login, logout, and access checks
+        passwords/      password hashing implementation
+        sessions/       secure session tokens and cookies
+        profiles/       authenticated user profiles
+        users/          user lookup interface for other modules
+        database/       identity schemas and PostgreSQL repositories
       workspaces/       workspace ownership and tenant membership
 packages/
   contracts/            shared Zod HTTP schemas; no persistence types
@@ -49,16 +55,20 @@ Database migrations are explicit release operations; API and frontend startup ne
 
 ## Authentication, profile, and workspace API
 
-| Method | Path             | Purpose                                     |
-| ------ | ---------------- | ------------------------------------------- |
-| `POST` | `/auth/register` | Register and create a cookie session        |
-| `POST` | `/auth/login`    | Authenticate and create a new session       |
-| `POST` | `/auth/logout`   | Revoke the current session                  |
-| `GET`  | `/auth/session`  | Return the authenticated user               |
-| `GET`  | `/profile`       | Return the authenticated user's profile     |
-| `POST` | `/workspaces`    | Create a workspace with the caller as owner |
-| `GET`  | `/workspaces`    | List only the caller's workspaces           |
-| `GET`  | `/health`        | Report API health                           |
+| Method   | Path                                       | Purpose                                     |
+| -------- | ------------------------------------------ | ------------------------------------------- |
+| `POST`   | `/auth/register`                           | Register and create a cookie session        |
+| `POST`   | `/auth/login`                              | Authenticate and create a new session       |
+| `POST`   | `/auth/logout`                             | Revoke the current session                  |
+| `GET`    | `/auth/session`                            | Return the authenticated user               |
+| `GET`    | `/profile`                                 | Return the authenticated user's profile     |
+| `POST`   | `/workspaces`                              | Create a workspace with the caller as owner |
+| `GET`    | `/workspaces`                              | List only the caller's workspaces           |
+| `GET`    | `/workspaces/:workspaceId`                 | Return a member-scoped workspace            |
+| `GET`    | `/workspaces/:workspaceId/members`         | List workspace members                      |
+| `POST`   | `/workspaces/:workspaceId/members`         | Add an existing user (owner only)           |
+| `DELETE` | `/workspaces/:workspaceId/members/:userId` | Remove a member (owner only)                |
+| `GET`    | `/health`                                  | Report API health                           |
 
 Passwords use Argon2id. Only a SHA-256 digest of each random session token is stored. Browser sessions use `HttpOnly`, `SameSite=Strict` cookies and `Secure` cookies in production. Unsafe production requests must come from `APP_ORIGIN`.
 
