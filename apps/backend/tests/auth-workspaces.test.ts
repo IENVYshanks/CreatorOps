@@ -18,16 +18,16 @@ import {
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from './app.js';
+import { createApp } from '../src/app.js';
 import type {
   AuthRepository,
   PasswordHasher,
   SessionTokenManager,
-} from './modules/identity/authentication/auth-dependencies.js';
-import { AuthService } from './modules/identity/authentication/auth-service.js';
-import type { StoredUser } from './modules/identity/authentication/auth-types.js';
-import type { WorkspaceRepository } from './modules/workspaces/workspace-repository.js';
-import { WorkspaceService } from './modules/workspaces/workspace-service.js';
+} from '../src/modules/identity/authentication/auth-dependencies.js';
+import { AuthService } from '../src/modules/identity/authentication/auth-service.js';
+import type { StoredUser } from '../src/modules/identity/authentication/auth-types.js';
+import type { WorkspaceRepository } from '../src/modules/workspaces/workspace-repository.js';
+import { WorkspaceService } from '../src/modules/workspaces/workspace-service.js';
 
 describe('authentication and workspace API', () => {
   it('registers a user and creates a revocable cookie session', async () => {

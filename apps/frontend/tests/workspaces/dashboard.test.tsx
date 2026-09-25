@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Dashboard } from './dashboard';
+import { Dashboard } from '../../features/workspaces/dashboard';
 
 const navigation = vi.hoisted(() => ({
   replace: vi.fn(),

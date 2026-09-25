@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ProfileView } from './profile-view';
+import { ProfileView } from '../../features/profile/profile-view';
 
 const navigation = vi.hoisted(() => ({
   replace: vi.fn(),

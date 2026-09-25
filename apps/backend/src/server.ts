@@ -1,8 +1,18 @@
+import { createHash } from 'node:crypto';
+
 import pino from 'pino';
 
 import { createApp } from './app.js';
 import { loadEnvironment } from './config.js';
 import { createDatabaseConnection } from './database/client.js';
+import type { InstagramProvider } from './modules/connections/instagram/providers/instagram-provider.js';
+import { MetaInstagramProvider } from './modules/connections/instagram/providers/meta-instagram-provider.js';
+import { MockInstagramProvider } from './modules/connections/instagram/providers/mock-instagram-provider.js';
+import { PostgresInstagramConnectionRepository } from './modules/connections/instagram/repositories/postgres-instagram-connection-repository.js';
+import { AesTokenEncryptor } from './modules/connections/instagram/security/aes-token-encryptor.js';
+import { InstagramConnectionService } from './modules/connections/instagram/services/instagram-connection-service.js';
+import { PostgresContentRepository } from './modules/content/repositories/postgres-content-repository.js';
+import { ContentService } from './modules/content/services/content-service.js';
 import { ArgonPasswordHasher } from './modules/identity/passwords/argon2-password-hasher.js';
 import { AuthService } from './modules/identity/authentication/auth-service.js';
 import { PostgresAuthRepository } from './modules/identity/database/postgres-auth-repository.js';
@@ -29,10 +39,42 @@ const workspaceService = new WorkspaceService(
 const profileService = new ProfileService(
   new PostgresProfileRepository(databaseConnection.database),
 );
+const contentService = new ContentService(
+  new PostgresContentRepository(databaseConnection.database),
+  workspaceService,
+);
+const instagramProvider: InstagramProvider | undefined =
+  environment.INSTAGRAM_PROVIDER === 'meta'
+    ? new MetaInstagramProvider({
+        appId: environment.INSTAGRAM_APP_ID,
+        appSecret: environment.INSTAGRAM_APP_SECRET,
+        redirectUri: environment.INSTAGRAM_REDIRECT_URI,
+        apiVersion: environment.INSTAGRAM_API_VERSION,
+      })
+    : environment.INSTAGRAM_PROVIDER === 'mock'
+      ? new MockInstagramProvider({ applicationOrigin: environment.APP_ORIGIN })
+      : undefined;
+const tokenEncryptionKey =
+  environment.INSTAGRAM_PROVIDER === 'meta'
+    ? environment.CONNECTION_TOKEN_ENCRYPTION_KEY
+    : createHash('sha256')
+        .update('creatorpilot-development-mock-instagram-token')
+        .digest('base64');
+const connectionService = instagramProvider
+  ? new InstagramConnectionService(
+      new PostgresInstagramConnectionRepository(databaseConnection.database),
+      workspaceService,
+      instagramProvider,
+      new AesTokenEncryptor(tokenEncryptionKey),
+      environment.APP_ORIGIN,
+    )
+  : undefined;
 const app = createApp({
   authService,
   workspaceService,
   profileService,
+  contentService,
+  ...(connectionService ? { connectionService } : {}),
   applicationOrigin: environment.APP_ORIGIN,
   requireTrustedOrigin: environment.NODE_ENV === 'production',
   cookie: {

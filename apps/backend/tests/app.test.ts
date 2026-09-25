@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from './app.js';
+import { createApp } from '../src/app.js';
 
 describe('Express application', () => {
   it('reports its health', async () => {

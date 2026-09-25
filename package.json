@@ -11,7 +11,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "npm run build --workspace=@creatorpilot/contracts && concurrently --kill-others --names backend,frontend --prefix-colors blue,magenta \"npm run dev --workspace=@creatorpilot/backend\" \"npm run dev --workspace=@creatorpilot/frontend\"",
+    "dev": "npm run build --workspace=@creatorpilot/contracts && concurrently --kill-others-on-fail --names backend,frontend,ngrok --prefix-colors blue,magenta,green \"npm run dev --workspace=@creatorpilot/backend\" \"npm run dev --workspace=@creatorpilot/frontend\" \"npm run dev:tunnel --workspace=@creatorpilot/backend\"",
     "clean": "npm run clean --workspaces --if-present",
     "build": "npm run build --workspace=@creatorpilot/contracts && npm run build --workspace=@creatorpilot/backend && npm run build --workspace=@creatorpilot/frontend",
     "start": "concurrently --kill-others --names backend,frontend --prefix-colors blue,magenta \"npm run start --workspace=@creatorpilot/backend\" \"npm run start --workspace=@creatorpilot/frontend\"",

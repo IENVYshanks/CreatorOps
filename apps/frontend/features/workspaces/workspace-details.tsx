@@ -3,6 +3,7 @@
 import type {
   WorkspaceDetails as WorkspaceDetailsData,
   WorkspaceMember,
+  PlatformConnection,
 } from '@creatorpilot/contracts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,7 +12,9 @@ import { type SyntheticEvent, useEffect, useState } from 'react';
 import {
   addWorkspaceMember,
   ApiClientError,
+  beginInstagramAuthorization,
   getWorkspace,
+  listWorkspaceConnections,
   listWorkspaceMembers,
 } from '../../lib/api';
 
@@ -22,28 +25,40 @@ const workspaceDateFormatter = new Intl.DateTimeFormat('en', {
 
 export interface WorkspaceDetailsProperties {
   workspaceId: string;
+  navigateToExternalUrl?: (url: string) => void;
 }
 
-export function WorkspaceDetails({ workspaceId }: WorkspaceDetailsProperties) {
+export function WorkspaceDetails({
+  workspaceId,
+  navigateToExternalUrl = (url) => {
+    window.location.assign(url);
+  },
+}: WorkspaceDetailsProperties) {
   const router = useRouter();
   const [workspace, setWorkspace] = useState<WorkspaceDetailsData>();
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [connections, setConnections] = useState<PlatformConnection[]>([]);
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [memberError, setMemberError] = useState<string>();
   const [addingMember, setAddingMember] = useState(false);
+  const [connectionError, setConnectionError] = useState<string>();
+  const [connectingInstagram, setConnectingInstagram] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function load(): Promise<void> {
       try {
-        const [workspaceDetails, memberList] = await Promise.all([
-          getWorkspace(workspaceId, controller.signal),
-          listWorkspaceMembers(workspaceId, controller.signal),
-        ]);
+        const [workspaceDetails, memberList, connectionList] =
+          await Promise.all([
+            getWorkspace(workspaceId, controller.signal),
+            listWorkspaceMembers(workspaceId, controller.signal),
+            listWorkspaceConnections(workspaceId, controller.signal),
+          ]);
         setWorkspace(workspaceDetails);
         setMembers(memberList.members);
+        setConnections(connectionList.connections);
       } catch (caught: unknown) {
         if (caught instanceof ApiClientError && caught.status === 401) {
           router.replace('/login');
@@ -72,6 +87,28 @@ export function WorkspaceDetails({ workspaceId }: WorkspaceDetailsProperties) {
       controller.abort();
     };
   }, [router, workspaceId]);
+
+  async function connectInstagram(): Promise<void> {
+    setConnectionError(undefined);
+    setConnectingInstagram(true);
+
+    try {
+      const authorization = await beginInstagramAuthorization(workspaceId);
+      navigateToExternalUrl(authorization.authorizationUrl);
+    } catch (caught: unknown) {
+      if (caught instanceof ApiClientError && caught.status === 401) {
+        router.replace('/login');
+        return;
+      }
+
+      setConnectionError(
+        caught instanceof Error
+          ? caught.message
+          : 'Unable to connect Instagram',
+      );
+      setConnectingInstagram(false);
+    }
+  }
 
   async function submitMember(
     event: SyntheticEvent<HTMLFormElement>,
@@ -139,6 +176,49 @@ export function WorkspaceDetails({ workspaceId }: WorkspaceDetailsProperties) {
                 {workspaceDateFormatter.format(new Date(workspace.createdAt))}
               </time>
             </p>
+
+            <Link
+              className="secondary-link"
+              href={`/workspaces/${workspaceId}/content`}
+            >
+              Open content studio
+            </Link>
+
+            <section
+              className="connection-panel"
+              aria-labelledby="connections-heading"
+            >
+              <h2 id="connections-heading">Connected platforms</h2>
+              {connections.length === 0 ? (
+                <p className="muted">No platforms connected yet.</p>
+              ) : (
+                connections.map((connection) => (
+                  <article className="connection-card" key={connection.id}>
+                    <div>
+                      <strong>Instagram</strong>
+                      <p className="muted">@{connection.username}</p>
+                    </div>
+                    <span>Connected</span>
+                  </article>
+                ))
+              )}
+              {workspace.role === 'owner' && connections.length === 0 ? (
+                <button
+                  disabled={connectingInstagram}
+                  onClick={() => void connectInstagram()}
+                  type="button"
+                >
+                  {connectingInstagram
+                    ? 'Connecting Instagram...'
+                    : 'Connect Instagram'}
+                </button>
+              ) : null}
+              {connectionError ? (
+                <p className="form-error" role="alert">
+                  {connectionError}
+                </p>
+              ) : null}
+            </section>
 
             {workspace.role === 'owner' ? (
               <section

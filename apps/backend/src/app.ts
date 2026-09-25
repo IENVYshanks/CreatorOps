@@ -7,6 +7,10 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { z, ZodError } from 'zod';
 
+import { createInstagramConnectionRoutes } from './modules/connections/instagram/routes/instagram-connection-routes.js';
+import type { InstagramConnectionService } from './modules/connections/instagram/services/instagram-connection-service.js';
+import { createContentRoutes } from './modules/content/routes/content-routes.js';
+import type { ContentService } from './modules/content/services/content-service.js';
 import { createAuthRoutes } from './modules/identity/authentication/auth-routes.js';
 import type { AuthService } from './modules/identity/authentication/auth-service.js';
 import { createRequireAuthentication } from './modules/identity/authentication/authentication-middleware.js';
@@ -80,6 +84,8 @@ export interface AppFeatures {
   requireTrustedOrigin: boolean;
   cookie: SessionCookieOptions;
   profileService?: ProfileService;
+  connectionService?: InstagramConnectionService;
+  contentService?: ContentService;
 }
 
 export function createApp(features?: AppFeatures): Express {
@@ -122,6 +128,26 @@ export function createApp(features?: AppFeatures): Express {
       app.use(
         '/profile',
         createProfileRoutes(features.profileService, requireAuthentication),
+      );
+    }
+
+    if (features.connectionService) {
+      app.use(
+        createInstagramConnectionRoutes(
+          features.connectionService,
+          requireAuthentication,
+          trustedOrigin,
+        ),
+      );
+    }
+
+    if (features.contentService) {
+      app.use(
+        createContentRoutes(
+          features.contentService,
+          requireAuthentication,
+          trustedOrigin,
+        ),
       );
     }
   }

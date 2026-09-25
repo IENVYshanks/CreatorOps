@@ -4,7 +4,16 @@ import {
   authSessionResponseSchema,
   type AuthSessionResponse,
   type CreateWorkspaceRequest,
+  type CreateContentDraftRequest,
+  type ContentDraft,
+  type ContentDraftListResponse,
+  contentDraftListResponseSchema,
+  contentDraftSchema,
   type LoginRequest,
+  type InstagramAuthorizationResponse,
+  instagramAuthorizationResponseSchema,
+  type PlatformConnectionListResponse,
+  platformConnectionListResponseSchema,
   type ProfileResponse,
   profileResponseSchema,
   type RegisterRequest,
@@ -13,6 +22,7 @@ import {
   type WorkspaceMemberListResponse,
   type WorkspaceMember,
   type WorkspaceSummary,
+  type UpdateContentDraftRequest,
   workspaceDetailsSchema,
   workspaceListResponseSchema,
   workspaceMemberSchema,
@@ -99,6 +109,91 @@ export function addWorkspaceMember(
   return request(`/workspaces/${workspaceId}/members`, workspaceMemberSchema, {
     method: 'POST',
     body: JSON.stringify(input),
+  });
+}
+
+export async function listWorkspaceConnections(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<PlatformConnectionListResponse> {
+  try {
+    return await request(
+      `/workspaces/${workspaceId}/connections`,
+      platformConnectionListResponseSchema,
+      { ...(signal ? { signal } : {}) },
+    );
+  } catch (error: unknown) {
+    // Keeps workspace pages compatible while the backend integration is disabled
+    // or while the frontend is deployed before its matching backend version.
+    if (error instanceof ApiClientError && error.status === 404) {
+      return { connections: [] };
+    }
+
+    throw error;
+  }
+}
+
+export async function beginInstagramAuthorization(
+  workspaceId: string,
+): Promise<InstagramAuthorizationResponse> {
+  try {
+    return await request(
+      `/workspaces/${workspaceId}/connections/instagram/authorization`,
+      instagramAuthorizationResponseSchema,
+      { method: 'POST' },
+    );
+  } catch (error: unknown) {
+    if (error instanceof ApiClientError && error.status === 404) {
+      throw new ApiClientError(
+        503,
+        'INSTAGRAM_NOT_CONFIGURED',
+        'Instagram connections are not configured yet',
+      );
+    }
+
+    throw error;
+  }
+}
+
+export function listContentDrafts(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<ContentDraftListResponse> {
+  return request(
+    `/workspaces/${workspaceId}/content`,
+    contentDraftListResponseSchema,
+    { ...(signal ? { signal } : {}) },
+  );
+}
+
+export function createContentDraft(
+  workspaceId: string,
+  input: CreateContentDraftRequest,
+): Promise<ContentDraft> {
+  return request(`/workspaces/${workspaceId}/content`, contentDraftSchema, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateContentDraft(
+  workspaceId: string,
+  contentId: string,
+  input: UpdateContentDraftRequest,
+): Promise<ContentDraft> {
+  return request(
+    `/workspaces/${workspaceId}/content/${contentId}`,
+    contentDraftSchema,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  );
+}
+
+export async function deleteContentDraft(
+  workspaceId: string,
+  contentId: string,
+): Promise<void> {
+  await requestWithoutBody(`/workspaces/${workspaceId}/content/${contentId}`, {
+    method: 'DELETE',
   });
 }
 

@@ -3,7 +3,7 @@ import { z } from 'zod';
 const localDatabaseUrl =
   'postgresql://creator_ops:creator_ops@127.0.0.1:5432/creator_ops';
 
-const environmentSchema = z
+const applicationEnvironmentSchema = z
   .object({
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
@@ -39,6 +39,44 @@ const environmentSchema = z
         code: 'custom',
         path: ['APP_ORIGIN'],
         message: 'Production application origin must use HTTPS',
+      });
+    }
+  });
+
+const instagramEnvironmentSchema = z.discriminatedUnion('INSTAGRAM_PROVIDER', [
+  z.object({
+    INSTAGRAM_PROVIDER: z.literal('disabled').default('disabled'),
+  }),
+  z.object({
+    INSTAGRAM_PROVIDER: z.literal('mock'),
+  }),
+  z.object({
+    INSTAGRAM_PROVIDER: z.literal('meta'),
+    INSTAGRAM_APP_ID: z.string().min(1),
+    INSTAGRAM_APP_SECRET: z.string().min(1),
+    INSTAGRAM_REDIRECT_URI: z.url(),
+    INSTAGRAM_API_VERSION: z.string().regex(/^v\d+\.\d+$/),
+    CONNECTION_TOKEN_ENCRYPTION_KEY: z.string().refine((value) => {
+      try {
+        return Buffer.from(value, 'base64').length === 32;
+      } catch {
+        return false;
+      }
+    }, 'Token encryption key must be a base64-encoded 32-byte value'),
+  }),
+]);
+
+const environmentSchema = applicationEnvironmentSchema
+  .and(instagramEnvironmentSchema)
+  .superRefine((environment, context) => {
+    if (
+      environment.NODE_ENV === 'production' &&
+      environment.INSTAGRAM_PROVIDER === 'mock'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['INSTAGRAM_PROVIDER'],
+        message: 'The mock Instagram provider cannot run in production',
       });
     }
   });

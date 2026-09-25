@@ -223,7 +223,8 @@ label {
   font-weight: 700;
 }
 
-input {
+input,
+textarea {
   width: 100%;
   padding: 0.8rem 0.9rem;
   border: 1px solid #334155;
@@ -234,7 +235,12 @@ input {
   font: inherit;
 }
 
-input:focus {
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
   border-color: #8b5cf6;
   box-shadow: 0 0 0 3px rgb(139 92 246 / 20%);
 }
@@ -294,6 +300,122 @@ input:focus {
   border: 1px solid rgb(148 163 184 / 18%);
   border-radius: 1rem;
   background: rgb(15 23 42 / 80%);
+}
+
+.content-layout {
+  width: min(72rem, 100%);
+  margin: 0 auto;
+}
+
+.content-header {
+  margin: 2.5rem 0;
+}
+
+.content-header h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.content-header .muted {
+  max-width: 42rem;
+  line-height: 1.6;
+}
+
+.content-studio-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.content-composer,
+.instagram-preview,
+.content-card {
+  padding: 1.5rem;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 1rem;
+  background: rgb(15 23 42 / 80%);
+}
+
+.content-composer h2,
+.content-list h2 {
+  margin-top: 0;
+}
+
+.instagram-preview {
+  position: sticky;
+  top: 2rem;
+}
+
+.instagram-preview strong,
+.instagram-preview > p:last-child {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.preview-media {
+  display: grid;
+  min-height: 15rem;
+  margin-bottom: 1rem;
+  place-items: center;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #111827;
+  color: #64748b;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.content-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 3rem;
+}
+
+.content-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.content-card h3 {
+  margin: 0.7rem 0;
+}
+
+.content-card p {
+  white-space: pre-wrap;
+}
+
+.content-status {
+  display: inline-flex;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 12%);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-ready {
+  background: rgb(245 158 11 / 15%);
+  color: #fcd34d;
+}
+
+.status-published {
+  background: rgb(16 185 129 / 15%);
+  color: #6ee7b7;
+}
+
+.content-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: start;
+  gap: 0.6rem;
+}
+
+.danger-button {
+  background: rgb(244 63 94 / 15%);
+  color: #fda4af;
 }
 
 .workspace-card span {
@@ -367,6 +489,43 @@ input:focus {
   background: rgb(15 23 42 / 80%);
 }
 
+.connection-panel {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 1rem;
+  background: rgb(15 23 42 / 80%);
+}
+
+.connection-panel h2,
+.connection-panel p {
+  margin: 0;
+}
+
+.connection-panel button {
+  justify-self: start;
+}
+
+.connection-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 0.75rem;
+  background: rgb(15 23 42 / 60%);
+}
+
+.connection-card span {
+  color: #6ee7b7;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .add-member-panel h2 {
   margin: 0;
 }
@@ -422,6 +581,19 @@ input:focus {
 
   .workspace-details-header {
     align-items: start;
+    flex-direction: column;
+  }
+
+  .content-studio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .instagram-preview {
+    position: static;
+  }
+
+  .content-card,
+  .content-actions {
     flex-direction: column;
   }
 }

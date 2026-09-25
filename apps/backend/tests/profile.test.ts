@@ -4,18 +4,18 @@ import express, { type ErrorRequestHandler } from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
-import { ApplicationError } from './shared/application-error.js';
-import { AuthService } from './modules/identity/authentication/auth-service.js';
+import { ApplicationError } from '../src/shared/application-error.js';
+import { AuthService } from '../src/modules/identity/authentication/auth-service.js';
 import type {
   AuthRepository,
   PasswordHasher,
   SessionTokenManager,
-} from './modules/identity/authentication/auth-dependencies.js';
-import type { StoredUser } from './modules/identity/authentication/auth-types.js';
-import { createRequireAuthentication } from './modules/identity/authentication/authentication-middleware.js';
-import { createProfileRoutes } from './modules/identity/profiles/profile-routes.js';
-import type { ProfileRepository } from './modules/identity/profiles/profile-repository.js';
-import { ProfileService } from './modules/identity/profiles/profile-service.js';
+} from '../src/modules/identity/authentication/auth-dependencies.js';
+import type { StoredUser } from '../src/modules/identity/authentication/auth-types.js';
+import { createRequireAuthentication } from '../src/modules/identity/authentication/authentication-middleware.js';
+import { createProfileRoutes } from '../src/modules/identity/profiles/profile-routes.js';
+import type { ProfileRepository } from '../src/modules/identity/profiles/profile-repository.js';
+import { ProfileService } from '../src/modules/identity/profiles/profile-service.js';
 
 const userId = '4e075cf1-a65a-4f1e-b62f-c4a3cb4bf23d';
 const profile: UserProfile = {

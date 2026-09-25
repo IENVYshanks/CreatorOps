@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
+    "dev:tunnel": "node --env-file-if-exists=.env --import tsx src/tooling/start-dev-tunnel.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "npm run clean && tsc --project tsconfig.build.json",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run src --exclude **/*.integration.test.ts",
-    "test:watch": "vitest src",
-    "test:integration": "vitest run src/database/repositories.integration.test.ts",
+    "test": "vitest run tests --exclude **/*.integration.test.ts",
+    "test:watch": "vitest tests --exclude **/*.integration.test.ts",
+    "test:integration": "vitest run tests/integration/repositories.integration.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env ../../node_modules/drizzle-kit/bin.cjs migrate"
   },

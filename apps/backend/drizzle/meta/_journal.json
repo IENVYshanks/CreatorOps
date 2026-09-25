@@ -8,6 +8,20 @@
       "when": 1790139219383,
       "tag": "0000_dizzy_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790159379957,
+      "tag": "0001_instagram_connections",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790266186087,
+      "tag": "0002_content_drafts",
+      "breakpoints": true
     }
   ]
 }

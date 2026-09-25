@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceDetails } from './workspace-details';
+import { WorkspaceDetails } from '../../features/workspaces/workspace-details';
 
 const navigation = vi.hoisted(() => ({
   replace: vi.fn(),
@@ -49,6 +49,7 @@ describe('WorkspaceDetails', () => {
           },
         ],
       },
+      { connections: [] },
     ];
     const fetchMock = vi
       .fn()
@@ -76,6 +77,13 @@ describe('WorkspaceDetails', () => {
       `/api/workspaces/${workspaceId}/members`,
       expect.any(Object),
     );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/workspaces/${workspaceId}/connections`,
+      expect.any(Object),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Connect Instagram' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Add a member' }),
     ).toBeInTheDocument();
@@ -96,6 +104,7 @@ describe('WorkspaceDetails', () => {
         createdAt: '2026-09-20T10:00:00.000Z',
       },
       { members: [] },
+      { connections: [] },
       newMember,
     ];
     const fetchMock = vi
@@ -117,7 +126,7 @@ describe('WorkspaceDetails', () => {
     expect(await screen.findByText('member@example.com')).toBeInTheDocument();
     expect(emailInput).toHaveValue('');
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       `/api/workspaces/${workspaceId}/members`,
       expect.objectContaining({
         method: 'POST',
@@ -135,6 +144,7 @@ describe('WorkspaceDetails', () => {
         createdAt: '2026-09-20T10:00:00.000Z',
       },
       { members: [] },
+      { connections: [] },
     ];
     vi.stubGlobal(
       'fetch',
@@ -153,6 +163,9 @@ describe('WorkspaceDetails', () => {
     expect(
       screen.queryByRole('heading', { name: 'Add a member' }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Connect Instagram' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows the API message when adding a member fails', async () => {
@@ -164,6 +177,7 @@ describe('WorkspaceDetails', () => {
         createdAt: '2026-09-20T10:00:00.000Z',
       }),
       jsonResponse({ members: [] }),
+      jsonResponse({ connections: [] }),
       jsonResponse(
         {
           error: {
@@ -202,6 +216,7 @@ describe('WorkspaceDetails', () => {
         createdAt: '2026-09-20T10:00:00.000Z',
       }),
       jsonResponse({ members: [] }),
+      jsonResponse({ connections: [] }),
       jsonResponse(
         { error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         401,
@@ -224,6 +239,89 @@ describe('WorkspaceDetails', () => {
     await waitFor(() => {
       expect(navigation.replace).toHaveBeenCalledWith('/login');
     });
+  });
+
+  it('starts Instagram authorization and navigates to Meta', async () => {
+    const authorizationUrl =
+      'https://www.instagram.com/oauth/authorize?state=secure-state';
+    const responses = [
+      {
+        id: workspaceId,
+        name: 'Creator Studio',
+        role: 'owner',
+        createdAt: '2026-09-20T10:00:00.000Z',
+      },
+      { members: [] },
+      { connections: [] },
+      { authorizationUrl },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse(responses.shift())),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const navigateToExternalUrl = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <WorkspaceDetails
+        workspaceId={workspaceId}
+        navigateToExternalUrl={navigateToExternalUrl}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Connect Instagram' }),
+    );
+
+    await waitFor(() => {
+      expect(navigateToExternalUrl).toHaveBeenCalledWith(authorizationUrl);
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      `/api/workspaces/${workspaceId}/connections/instagram/authorization`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('shows a connected Instagram account without another connect button', async () => {
+    const responses = [
+      {
+        id: workspaceId,
+        name: 'Creator Studio',
+        role: 'owner',
+        createdAt: '2026-09-20T10:00:00.000Z',
+      },
+      { members: [] },
+      {
+        connections: [
+          {
+            id: 'd69a9d2d-cef8-454a-b6e3-9d7a50b6f70d',
+            platform: 'instagram',
+            accountId: '17841400000000000',
+            username: 'creator',
+            connectedAt: '2026-09-23T10:00:00.000Z',
+          },
+        ],
+      },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(jsonResponse(responses.shift())),
+        ),
+    );
+
+    render(<WorkspaceDetails workspaceId={workspaceId} />);
+
+    expect(await screen.findByText('@creator')).toBeInTheDocument();
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Connect Instagram' }),
+    ).not.toBeInTheDocument();
   });
 
   it('redirects an unauthenticated visitor to login', async () => {
