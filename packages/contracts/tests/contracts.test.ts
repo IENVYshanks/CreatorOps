@@ -4,6 +4,8 @@ import {
   addWorkspaceMemberRequestSchema,
   createWorkspaceRequestSchema,
   createContentDraftRequestSchema,
+  instagramAnalyticsQuerySchema,
+  instagramAnalyticsResponseSchema,
   instagramAuthorizationResponseSchema,
   platformConnectionSchema,
   registerRequestSchema,
@@ -66,6 +68,36 @@ describe('public contracts', () => {
         accessToken: 'must-not-be-part-of-the-contract',
       }),
     ).not.toHaveProperty('accessToken');
+  });
+
+  it('validates Instagram analytics ranges and responses without exposing tokens', () => {
+    expect(instagramAnalyticsQuerySchema.parse({ rangeDays: '7' })).toEqual({
+      rangeDays: 7,
+    });
+    expect(() =>
+      instagramAnalyticsQuerySchema.parse({ rangeDays: '14' }),
+    ).toThrow();
+
+    const analytics = instagramAnalyticsResponseSchema.parse({
+      rangeDays: 7,
+      profile: {
+        username: 'creator',
+        accountType: 'BUSINESS',
+        followersCount: 420,
+        mediaCount: 12,
+        tokenExpiresAt: '2026-11-24T15:44:08.013Z',
+        accessToken: 'must-not-be-part-of-the-contract',
+      },
+      metrics: {
+        views: 1_200,
+        reach: 800,
+        accountsEngaged: null,
+        totalInteractions: 95,
+      },
+      recentMedia: [],
+    });
+
+    expect(analytics.profile).not.toHaveProperty('accessToken');
   });
 
   it('validates content draft creation and non-empty updates', () => {

@@ -184,6 +184,15 @@ export function WorkspaceDetails({
               Open content studio
             </Link>
 
+            {connections.length > 0 ? (
+              <Link
+                className="secondary-link"
+                href={`/workspaces/${workspaceId}/analytics`}
+              >
+                Open Instagram dashboard
+              </Link>
+            ) : null}
+
             <section
               className="connection-panel"
               aria-labelledby="connections-heading"

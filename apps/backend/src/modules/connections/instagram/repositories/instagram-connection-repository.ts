@@ -21,6 +21,13 @@ export interface SaveInstagramConnectionInput {
   accessTokenExpiresAt?: Date;
 }
 
+export interface StoredInstagramConnection {
+  accountId: string;
+  username: string;
+  accessToken: EncryptedToken;
+  accessTokenExpiresAt?: Date;
+}
+
 export interface InstagramConnectionRepository {
   createAuthorizationState(state: AuthorizationStateRecord): Promise<void>;
   consumeAuthorizationState(
@@ -30,5 +37,8 @@ export interface InstagramConnectionRepository {
   saveInstagramConnection(
     input: SaveInstagramConnectionInput,
   ): Promise<PlatformConnection>;
+  findForWorkspace(
+    workspaceId: string,
+  ): Promise<StoredInstagramConnection | undefined>;
   listForWorkspace(workspaceId: string): Promise<PlatformConnection[]>;
 }

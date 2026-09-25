@@ -5,6 +5,10 @@ import pino from 'pino';
 import { createApp } from './app.js';
 import { loadEnvironment } from './config.js';
 import { createDatabaseConnection } from './database/client.js';
+import type { InstagramAnalyticsProvider } from './modules/analytics/instagram/providers/instagram-analytics-provider.js';
+import { MetaInstagramAnalyticsProvider } from './modules/analytics/instagram/providers/meta-instagram-analytics-provider.js';
+import { MockInstagramAnalyticsProvider } from './modules/analytics/instagram/providers/mock-instagram-analytics-provider.js';
+import { InstagramAnalyticsService } from './modules/analytics/instagram/services/instagram-analytics-service.js';
 import type { InstagramProvider } from './modules/connections/instagram/providers/instagram-provider.js';
 import { MetaInstagramProvider } from './modules/connections/instagram/providers/meta-instagram-provider.js';
 import { MockInstagramProvider } from './modules/connections/instagram/providers/mock-instagram-provider.js';
@@ -69,12 +73,25 @@ const connectionService = instagramProvider
       environment.APP_ORIGIN,
     )
   : undefined;
+const analyticsProvider: InstagramAnalyticsProvider | undefined =
+  environment.INSTAGRAM_PROVIDER === 'meta'
+    ? new MetaInstagramAnalyticsProvider({
+        apiVersion: environment.INSTAGRAM_API_VERSION,
+      })
+    : environment.INSTAGRAM_PROVIDER === 'mock'
+      ? new MockInstagramAnalyticsProvider()
+      : undefined;
+const analyticsService =
+  connectionService && analyticsProvider
+    ? new InstagramAnalyticsService(connectionService, analyticsProvider)
+    : undefined;
 const app = createApp({
   authService,
   workspaceService,
   profileService,
   contentService,
   ...(connectionService ? { connectionService } : {}),
+  ...(analyticsService ? { analyticsService } : {}),
   applicationOrigin: environment.APP_ORIGIN,
   requireTrustedOrigin: environment.NODE_ENV === 'production',
   cookie: {

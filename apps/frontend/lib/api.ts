@@ -12,6 +12,9 @@ import {
   type LoginRequest,
   type InstagramAuthorizationResponse,
   instagramAuthorizationResponseSchema,
+  type InstagramAnalyticsRange,
+  type InstagramAnalyticsResponse,
+  instagramAnalyticsResponseSchema,
   type PlatformConnectionListResponse,
   platformConnectionListResponseSchema,
   type ProfileResponse,
@@ -153,6 +156,18 @@ export async function beginInstagramAuthorization(
 
     throw error;
   }
+}
+
+export function getInstagramAnalytics(
+  workspaceId: string,
+  rangeDays: InstagramAnalyticsRange,
+  signal?: AbortSignal,
+): Promise<InstagramAnalyticsResponse> {
+  return request(
+    `/workspaces/${workspaceId}/analytics/instagram?rangeDays=${String(rangeDays)}`,
+    instagramAnalyticsResponseSchema,
+    { ...(signal ? { signal } : {}) },
+  );
 }
 
 export function listContentDrafts(

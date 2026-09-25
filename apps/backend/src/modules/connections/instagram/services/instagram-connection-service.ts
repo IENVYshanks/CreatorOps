@@ -18,6 +18,13 @@ export interface WorkspaceAccess {
   getForUser(userId: string, workspaceId: string): Promise<WorkspaceDetails>;
 }
 
+export interface AuthorizedInstagramAccount {
+  accountId: string;
+  username: string;
+  accessToken: string;
+  accessTokenExpiresAt?: Date;
+}
+
 export class InstagramConnectionService {
   public constructor(
     private readonly repository: InstagramConnectionRepository,
@@ -112,6 +119,50 @@ export class InstagramConnectionService {
   ): Promise<PlatformConnection[]> {
     await this.workspaceAccess.getForUser(userId, workspaceId);
     return this.repository.listForWorkspace(workspaceId);
+  }
+
+  public async getAuthorizedAccount(
+    userId: string,
+    workspaceId: string,
+  ): Promise<AuthorizedInstagramAccount> {
+    await this.workspaceAccess.getForUser(userId, workspaceId);
+    const connection = await this.repository.findForWorkspace(workspaceId);
+
+    if (!connection) {
+      throw new ApplicationError(
+        404,
+        'INSTAGRAM_NOT_CONNECTED',
+        'Instagram is not connected to this workspace',
+      );
+    }
+
+    if (
+      connection.accessTokenExpiresAt !== undefined &&
+      connection.accessTokenExpiresAt <= this.now()
+    ) {
+      throw new ApplicationError(
+        409,
+        'INSTAGRAM_REAUTHORIZATION_REQUIRED',
+        'Reconnect Instagram to continue',
+      );
+    }
+
+    try {
+      return {
+        accountId: connection.accountId,
+        username: connection.username,
+        accessToken: this.tokenEncryptor.decrypt(connection.accessToken),
+        ...(connection.accessTokenExpiresAt === undefined
+          ? {}
+          : { accessTokenExpiresAt: connection.accessTokenExpiresAt }),
+      };
+    } catch {
+      throw new ApplicationError(
+        409,
+        'INSTAGRAM_REAUTHORIZATION_REQUIRED',
+        'Reconnect Instagram to continue',
+      );
+    }
   }
 }
 

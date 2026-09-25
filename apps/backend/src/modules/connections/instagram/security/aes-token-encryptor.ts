@@ -1,9 +1,10 @@
-import { createCipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 import type { EncryptedToken } from '../repositories/instagram-connection-repository.js';
 
 export interface TokenEncryptor {
   encrypt(value: string): EncryptedToken;
+  decrypt(value: EncryptedToken): string;
 }
 
 export class AesTokenEncryptor implements TokenEncryptor {
@@ -34,5 +35,19 @@ export class AesTokenEncryptor implements TokenEncryptor {
       initializationVector: initializationVector.toString('base64'),
       authenticationTag: cipher.getAuthTag().toString('base64'),
     };
+  }
+
+  public decrypt(value: EncryptedToken): string {
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.key,
+      Buffer.from(value.initializationVector, 'base64'),
+    );
+    decipher.setAuthTag(Buffer.from(value.authenticationTag, 'base64'));
+
+    return Buffer.concat([
+      decipher.update(Buffer.from(value.ciphertext, 'base64')),
+      decipher.final(),
+    ]).toString('utf8');
   }
 }

@@ -322,6 +322,9 @@ describe('WorkspaceDetails', () => {
     expect(
       screen.queryByRole('button', { name: 'Connect Instagram' }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Open Instagram dashboard' }),
+    ).toHaveAttribute('href', `/workspaces/${workspaceId}/analytics`);
   });
 
   it('redirects an unauthenticated visitor to login', async () => {

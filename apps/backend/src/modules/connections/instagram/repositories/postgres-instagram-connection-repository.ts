@@ -10,6 +10,7 @@ import type {
   AuthorizationStateRecord,
   InstagramConnectionRepository,
   SaveInstagramConnectionInput,
+  StoredInstagramConnection,
 } from './instagram-connection-repository.js';
 
 export class PostgresInstagramConnectionRepository implements InstagramConnectionRepository {
@@ -110,5 +111,45 @@ export class PostgresInstagramConnectionRepository implements InstagramConnectio
         connectedAt: connection.connectedAt.toISOString(),
       };
     });
+  }
+
+  public async findForWorkspace(
+    workspaceId: string,
+  ): Promise<StoredInstagramConnection | undefined> {
+    const [connection] = await this.database
+      .select({
+        accountId: platformConnections.providerAccountId,
+        username: platformConnections.username,
+        ciphertext: platformConnections.encryptedAccessToken,
+        initializationVector:
+          platformConnections.accessTokenInitializationVector,
+        authenticationTag: platformConnections.accessTokenAuthenticationTag,
+        accessTokenExpiresAt: platformConnections.accessTokenExpiresAt,
+      })
+      .from(platformConnections)
+      .where(
+        and(
+          eq(platformConnections.workspaceId, workspaceId),
+          eq(platformConnections.platform, 'instagram'),
+        ),
+      )
+      .limit(1);
+
+    if (!connection) {
+      return undefined;
+    }
+
+    return {
+      accountId: connection.accountId,
+      username: connection.username,
+      accessToken: {
+        ciphertext: connection.ciphertext,
+        initializationVector: connection.initializationVector,
+        authenticationTag: connection.authenticationTag,
+      },
+      ...(connection.accessTokenExpiresAt === null
+        ? {}
+        : { accessTokenExpiresAt: connection.accessTokenExpiresAt }),
+    };
   }
 }

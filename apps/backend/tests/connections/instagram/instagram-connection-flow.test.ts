@@ -14,6 +14,7 @@ import type {
   AuthorizationStateRecord,
   InstagramConnectionRepository,
   SaveInstagramConnectionInput,
+  StoredInstagramConnection,
 } from '../../../src/modules/connections/instagram/repositories/instagram-connection-repository.js';
 import { createInstagramConnectionRoutes } from '../../../src/modules/connections/instagram/routes/instagram-connection-routes.js';
 import type { TokenEncryptor } from '../../../src/modules/connections/instagram/security/aes-token-encryptor.js';
@@ -77,6 +78,23 @@ class MemoryInstagramConnectionRepository implements InstagramConnectionReposito
         : [],
     );
   }
+
+  public findForWorkspace(
+    requestedWorkspaceId: string,
+  ): Promise<StoredInstagramConnection | undefined> {
+    if (this.saved?.workspaceId !== requestedWorkspaceId) {
+      return Promise.resolve(undefined);
+    }
+
+    return Promise.resolve({
+      accountId: this.saved.accountId,
+      username: this.saved.username,
+      accessToken: this.saved.accessToken,
+      ...(this.saved.accessTokenExpiresAt === undefined
+        ? {}
+        : { accessTokenExpiresAt: this.saved.accessTokenExpiresAt }),
+    });
+  }
 }
 
 function createService(role: 'owner' | 'member' = 'owner') {
@@ -105,6 +123,7 @@ function createService(role: 'owner' | 'member' = 'owner') {
       initializationVector: 'initialization-vector',
       authenticationTag: 'authentication-tag',
     }),
+    decrypt: vi.fn().mockReturnValue('plain-secret-token'),
   };
   const service = new InstagramConnectionService(
     repository,
@@ -237,6 +256,26 @@ describe('Instagram workspace connection', () => {
     expect(forbidden.status).toBe(403);
     expect(forbidden.body).toMatchObject({
       error: { code: 'WORKSPACE_OWNER_REQUIRED' },
+    });
+  });
+
+  it('returns a decrypted authorized account only after workspace access', async () => {
+    const { service } = createService();
+    await service.completeInstagramAuthorization(
+      'authorization-code',
+      new URL(
+        (await service.beginInstagramAuthorization(userId, workspaceId))
+          .authorizationUrl,
+      ).searchParams.get('state') ?? '',
+    );
+
+    await expect(
+      service.getAuthorizedAccount(userId, workspaceId),
+    ).resolves.toEqual({
+      accountId: '17841400000000000',
+      username: 'creator',
+      accessToken: 'plain-secret-token',
+      accessTokenExpiresAt: new Date('2026-11-22T10:00:00.000Z'),
     });
   });
 

@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { z, ZodError } from 'zod';
 
+import { createInstagramAnalyticsRoutes } from './modules/analytics/instagram/routes/instagram-analytics-routes.js';
+import type { InstagramAnalyticsService } from './modules/analytics/instagram/services/instagram-analytics-service.js';
 import { createInstagramConnectionRoutes } from './modules/connections/instagram/routes/instagram-connection-routes.js';
 import type { InstagramConnectionService } from './modules/connections/instagram/services/instagram-connection-service.js';
 import { createContentRoutes } from './modules/content/routes/content-routes.js';
@@ -86,6 +88,7 @@ export interface AppFeatures {
   profileService?: ProfileService;
   connectionService?: InstagramConnectionService;
   contentService?: ContentService;
+  analyticsService?: InstagramAnalyticsService;
 }
 
 export function createApp(features?: AppFeatures): Express {
@@ -147,6 +150,15 @@ export function createApp(features?: AppFeatures): Express {
           features.contentService,
           requireAuthentication,
           trustedOrigin,
+        ),
+      );
+    }
+
+    if (features.analyticsService) {
+      app.use(
+        createInstagramAnalyticsRoutes(
+          features.analyticsService,
+          requireAuthentication,
         ),
       );
     }
