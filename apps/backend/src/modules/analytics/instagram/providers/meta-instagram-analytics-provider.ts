@@ -35,6 +35,11 @@ const mediaSchema = z.object({
       comments_count: z.coerce.number().int().nonnegative().optional(),
     }),
   ),
+  paging: z
+    .object({
+      next: z.url().optional(),
+    })
+    .optional(),
 });
 
 const insightsSchema = z.object({
@@ -42,6 +47,20 @@ const insightsSchema = z.object({
     z.object({
       name: z.string(),
       total_value: z.object({ value: z.coerce.number().int().nonnegative() }),
+    }),
+  ),
+});
+
+const mediaInsightsSchema = z.object({
+  data: z.array(
+    z.object({
+      name: z.string(),
+      total_value: z
+        .object({ value: z.coerce.number().int().nonnegative() })
+        .optional(),
+      values: z
+        .array(z.object({ value: z.coerce.number().int().nonnegative() }))
+        .optional(),
     }),
   ),
 });
@@ -84,10 +103,11 @@ export class MetaInstagramAnalyticsProvider implements InstagramAnalyticsProvide
       'fields',
       'id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count',
     );
-    mediaUrl.searchParams.set('limit', '6');
+    const isOverall = rangeDays === 'overall';
+    mediaUrl.searchParams.set('limit', isOverall ? '100' : '20');
 
     const until = Math.floor(this.now().getTime() / 1000);
-    const since = until - rangeDays * 24 * 60 * 60;
+    const since = isOverall ? undefined : until - rangeDays * 24 * 60 * 60;
     const insightsUrl = new URL(`${baseUrl}/insights`);
     insightsUrl.searchParams.set(
       'metric',
@@ -95,18 +115,34 @@ export class MetaInstagramAnalyticsProvider implements InstagramAnalyticsProvide
     );
     insightsUrl.searchParams.set('period', 'day');
     insightsUrl.searchParams.set('metric_type', 'total_value');
-    insightsUrl.searchParams.set('since', String(since));
+    if (since !== undefined)
+      insightsUrl.searchParams.set('since', String(since));
     insightsUrl.searchParams.set('until', String(until));
 
     const headers = { Authorization: `Bearer ${accessToken}` };
-    const [profile, media, insights] = await Promise.all([
+    const [profile, firstMediaPage, insights] = await Promise.all([
       this.requestJson(profileUrl, profileSchema, headers),
       this.requestJson(mediaUrl, mediaSchema, headers),
-      this.requestJson(insightsUrl, insightsSchema, headers),
+      isOverall
+        ? Promise.resolve({ data: [] } as z.infer<typeof insightsSchema>)
+        : this.requestJson(insightsUrl, insightsSchema, headers),
     ]);
     const metricValues = new Map(
       insights.data.map((metric) => [metric.name, metric.total_value.value]),
     );
+    const allMedia = isOverall
+      ? await this.requestAllMedia(firstMediaPage, headers)
+      : firstMediaPage.data;
+    const selectedMedia =
+      since === undefined
+        ? allMedia
+        : allMedia.filter((item) => Date.parse(item.timestamp) >= since * 1000);
+    const analysisMedia = isOverall
+      ? selectedMedia.map((item) => ({
+          ...mapMedia(item),
+          ...emptyMediaInsights(),
+        }))
+      : await this.enrichMedia(selectedMedia, accessToken);
 
     return {
       profile: {
@@ -121,19 +157,100 @@ export class MetaInstagramAnalyticsProvider implements InstagramAnalyticsProvide
         accountsEngaged: metricValues.get('accounts_engaged') ?? null,
         totalInteractions: metricValues.get('total_interactions') ?? null,
       },
-      recentMedia: media.data.map((item) => ({
-        id: item.id,
-        caption: item.caption ?? null,
-        mediaType: item.media_type,
-        mediaProductType: item.media_product_type ?? null,
-        mediaUrl: item.media_url ?? null,
-        thumbnailUrl: item.thumbnail_url ?? null,
-        permalink: item.permalink,
-        timestamp: new Date(item.timestamp).toISOString(),
-        likeCount: item.like_count ?? 0,
-        commentsCount: item.comments_count ?? 0,
-      })),
+      recentMedia: analysisMedia.slice(0, 6),
+      analysisMedia,
     };
+  }
+
+  private async requestAllMedia(
+    firstPage: z.infer<typeof mediaSchema>,
+    headers: Record<string, string>,
+  ): Promise<z.infer<typeof mediaSchema>['data']> {
+    const media = [...firstPage.data];
+    let next = firstPage.paging?.next;
+    const visitedPages = new Set<string>();
+    while (next && media.length < 500) {
+      const nextUrl = new URL(next);
+      if (
+        nextUrl.origin !== 'https://graph.instagram.com' ||
+        visitedPages.has(nextUrl.toString())
+      ) {
+        throw new InstagramAnalyticsProviderError(
+          'Instagram returned an invalid pagination URL',
+        );
+      }
+      visitedPages.add(nextUrl.toString());
+      nextUrl.searchParams.delete('access_token');
+      const page = await this.requestJson(nextUrl, mediaSchema, headers);
+      media.push(...page.data.slice(0, 500 - media.length));
+      next = page.paging?.next;
+    }
+    return media;
+  }
+
+  private async enrichMedia(
+    media: z.infer<typeof mediaSchema>['data'],
+    accessToken: string,
+  ): Promise<InstagramAnalyticsProviderSnapshot['analysisMedia']> {
+    const enriched: InstagramAnalyticsProviderSnapshot['analysisMedia'] = [];
+    for (let index = 0; index < media.length; index += 4) {
+      const batch = media.slice(index, index + 4);
+      enriched.push(
+        ...(await Promise.all(
+          batch.map(async (item) => {
+            const metrics = await this.requestMediaInsights(
+              item.id,
+              accessToken,
+            );
+            return {
+              ...mapMedia(item),
+              ...metrics,
+            };
+          }),
+        )),
+      );
+    }
+    return enriched;
+  }
+
+  private async requestMediaInsights(
+    mediaId: string,
+    accessToken: string,
+  ): Promise<{
+    views: number | null;
+    reach: number | null;
+    saved: number | null;
+    shares: number | null;
+    totalInteractions: number | null;
+  }> {
+    const url = new URL(
+      `https://graph.instagram.com/${this.options.apiVersion}/${encodeURIComponent(mediaId)}/insights`,
+    );
+    url.searchParams.set(
+      'metric',
+      'views,reach,saved,shares,total_interactions',
+    );
+    try {
+      const insights = await this.requestJson(url, mediaInsightsSchema, {
+        Authorization: `Bearer ${accessToken}`,
+      });
+      const metrics = new Map(
+        insights.data.map((metric) => [
+          metric.name,
+          metric.total_value?.value ?? metric.values?.at(-1)?.value ?? null,
+        ]),
+      );
+      return {
+        views: metrics.get('views') ?? null,
+        reach: metrics.get('reach') ?? null,
+        saved: metrics.get('saved') ?? null,
+        shares: metrics.get('shares') ?? null,
+        totalInteractions: metrics.get('total_interactions') ?? null,
+      };
+    } catch (error: unknown) {
+      if (!(error instanceof InstagramAnalyticsProviderError)) throw error;
+      return emptyMediaInsights();
+    }
   }
 
   private async requestJson<T>(
@@ -162,4 +279,34 @@ export class MetaInstagramAnalyticsProvider implements InstagramAnalyticsProvide
       throw new InstagramAnalyticsProviderError('Instagram request failed');
     }
   }
+}
+
+function emptyMediaInsights() {
+  return {
+    views: null,
+    reach: null,
+    saved: null,
+    shares: null,
+    totalInteractions: null,
+  };
+}
+
+function mapMedia(
+  item: z.infer<typeof mediaSchema>['data'][number],
+): Omit<
+  InstagramAnalyticsProviderSnapshot['analysisMedia'][number],
+  'views' | 'reach' | 'saved' | 'shares' | 'totalInteractions'
+> {
+  return {
+    id: item.id,
+    caption: item.caption ?? null,
+    mediaType: item.media_type,
+    mediaProductType: item.media_product_type ?? null,
+    mediaUrl: item.media_url ?? null,
+    thumbnailUrl: item.thumbnail_url ?? null,
+    permalink: item.permalink,
+    timestamp: new Date(item.timestamp).toISOString(),
+    likeCount: item.like_count ?? 0,
+    commentsCount: item.comments_count ?? 0,
+  };
 }

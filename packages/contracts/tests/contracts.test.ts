@@ -74,6 +74,9 @@ describe('public contracts', () => {
     expect(instagramAnalyticsQuerySchema.parse({ rangeDays: '7' })).toEqual({
       rangeDays: 7,
     });
+    expect(
+      instagramAnalyticsQuerySchema.parse({ rangeDays: 'overall' }),
+    ).toEqual({ rangeDays: 'overall' });
     expect(() =>
       instagramAnalyticsQuerySchema.parse({ rangeDays: '14' }),
     ).toThrow();
@@ -95,6 +98,14 @@ describe('public contracts', () => {
         totalInteractions: 95,
       },
       recentMedia: [],
+      overall: null,
+      analysis: {
+        status: 'insufficient_data',
+        sampleSize: 0,
+        summary: 'At least 4 posts are needed.',
+        patterns: [],
+        recommendations: [],
+      },
     });
 
     expect(analytics.profile).not.toHaveProperty('accessToken');

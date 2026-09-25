@@ -35,6 +35,7 @@ const snapshot = {
     totalInteractions: 830,
   },
   recentMedia: [],
+  analysisMedia: [],
 };
 
 function createService(provider: InstagramAnalyticsProvider) {
@@ -117,6 +118,22 @@ describe('Instagram analytics', () => {
         );
       }
 
+      if (url.pathname.endsWith('/media-1/insights')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [
+                { name: 'views', values: [{ value: 540 }] },
+                { name: 'reach', values: [{ value: 410 }] },
+                { name: 'saved', values: [{ value: 12 }] },
+                { name: 'shares', values: [{ value: 8 }] },
+                { name: 'total_interactions', values: [{ value: 65 }] },
+              ],
+            }),
+          ),
+        );
+      }
+
       if (url.pathname.endsWith('/insights')) {
         expect(url.searchParams.get('since')).toBe('1787616000');
         expect(url.searchParams.get('until')).toBe('1790208000');
@@ -156,7 +173,7 @@ describe('Instagram analytics', () => {
       30,
     );
 
-    expect(requestMock).toHaveBeenCalledTimes(3);
+    expect(requestMock).toHaveBeenCalledTimes(4);
     expect(result.metrics).toEqual({
       views: 9000,
       reach: 7200,
@@ -170,6 +187,11 @@ describe('Instagram analytics', () => {
       commentsCount: 3,
       thumbnailUrl: null,
       timestamp: '2026-09-24T10:00:00.000Z',
+      views: 540,
+      reach: 410,
+      saved: 12,
+      shares: 8,
+      totalInteractions: 65,
     });
   });
 
@@ -190,9 +212,155 @@ describe('Instagram analytics', () => {
         tokenExpiresAt: '2026-11-24T10:00:00.000Z',
       },
       metrics: { views: 9000 },
+      overall: null,
+      analysis: { status: 'insufficient_data', sampleSize: 0 },
     });
     expect(getAuthorizedAccount).toHaveBeenCalledWith(userId, workspaceId);
     expect(JSON.stringify(response.body)).not.toContain('secret-access-token');
+  });
+
+  it('returns an all-available-history overview when overall is selected', async () => {
+    const provider: InstagramAnalyticsProvider = {
+      getDashboard: vi.fn().mockResolvedValue(snapshot),
+    };
+    const { service } = createService(provider);
+
+    const response = await request(createRouteApp(service)).get(
+      `/workspaces/${workspaceId}/analytics/instagram?rangeDays=overall`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      rangeDays: 'overall',
+      overall: {
+        analyzedMediaCount: 0,
+        totalMediaCount: 32,
+        coverageComplete: false,
+      },
+    });
+  });
+
+  it('keeps media available when Meta cannot provide its insights', async () => {
+    const requestMock = vi.fn((input: string | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/legacy-media/insights')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: 100 } }), {
+            status: 400,
+          }),
+        );
+      }
+      if (url.pathname.endsWith('/media')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [
+                {
+                  id: 'legacy-media',
+                  media_type: 'IMAGE',
+                  permalink: 'https://www.instagram.com/p/legacy/',
+                  timestamp: '2026-09-23T10:00:00+0000',
+                  like_count: 20,
+                  comments_count: 2,
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url.pathname.endsWith('/insights')) {
+        return Promise.resolve(new Response(JSON.stringify({ data: [] })));
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            username: 'creator',
+            account_type: 'BUSINESS',
+            followers_count: 1200,
+            media_count: 32,
+          }),
+        ),
+      );
+    });
+    const provider = new MetaInstagramAnalyticsProvider({
+      apiVersion: 'v26.0',
+      fetch: requestMock as typeof fetch,
+      now: () => new Date('2026-09-24T00:00:00.000Z'),
+    });
+
+    const result = await provider.getDashboard('account', 'token', 7);
+
+    expect(result.recentMedia[0]).toMatchObject({
+      id: 'legacy-media',
+      likeCount: 20,
+      commentsCount: 2,
+      views: null,
+      reach: null,
+      totalInteractions: null,
+    });
+  });
+
+  it('paginates available media for the overall range without requesting lifetime insights', async () => {
+    const requestMock = vi.fn((input: string | URL) => {
+      const url = new URL(String(input));
+      expect(url.searchParams.has('access_token')).toBe(false);
+      if (url.pathname.endsWith('/media') && url.searchParams.has('after')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [
+                mediaResponseItem('older-media', '2025-01-01T10:00:00+0000'),
+              ],
+            }),
+          ),
+        );
+      }
+      if (url.pathname.endsWith('/media')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [
+                mediaResponseItem('newer-media', '2026-01-01T10:00:00+0000'),
+              ],
+              paging: {
+                next: 'https://graph.instagram.com/v26.0/account/media?after=cursor&access_token=must-be-removed',
+              },
+            }),
+          ),
+        );
+      }
+      if (url.pathname.endsWith('/insights')) {
+        throw new Error('Overall must not request lifetime insights');
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            username: 'creator',
+            account_type: 'BUSINESS',
+            followers_count: 1200,
+            media_count: 2,
+          }),
+        ),
+      );
+    });
+    const provider = new MetaInstagramAnalyticsProvider({
+      apiVersion: 'v26.0',
+      fetch: requestMock as typeof fetch,
+    });
+
+    const result = await provider.getDashboard('account', 'token', 'overall');
+
+    expect(requestMock).toHaveBeenCalledTimes(3);
+    expect(result.metrics).toEqual({
+      views: null,
+      reach: null,
+      accountsEngaged: null,
+      totalInteractions: null,
+    });
+    expect(result.analysisMedia.map((item) => item.id)).toEqual([
+      'newer-media',
+      'older-media',
+    ]);
   });
 
   it('rejects unsupported ranges and unauthenticated requests', async () => {
@@ -234,3 +402,14 @@ describe('Instagram analytics', () => {
     });
   });
 });
+
+function mediaResponseItem(id: string, timestamp: string) {
+  return {
+    id,
+    media_type: 'IMAGE',
+    permalink: `https://www.instagram.com/p/${id}/`,
+    timestamp,
+    like_count: 20,
+    comments_count: 2,
+  };
+}

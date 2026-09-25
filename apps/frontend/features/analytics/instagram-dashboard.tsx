@@ -15,7 +15,7 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   dateStyle: 'medium',
   timeZone: 'UTC',
 });
-const ranges: InstagramAnalyticsRange[] = [7, 30, 90];
+const ranges: InstagramAnalyticsRange[] = [7, 30, 90, 'overall'];
 
 export interface InstagramDashboardProperties {
   workspaceId: string;
@@ -93,7 +93,8 @@ export function InstagramDashboard({
               {analytics ? `@${analytics.profile.username}` : 'Performance'}
             </h1>
             <p className="muted">
-              Account-level results and your six most recent posts.
+              Account-level results, content patterns, and evidence-based
+              outreach recommendations.
             </p>
           </div>
           <label className="range-control">
@@ -103,13 +104,17 @@ export function InstagramDashboard({
               value={rangeDays}
               onChange={(event) => {
                 setRangeDays(
-                  Number(event.target.value) as InstagramAnalyticsRange,
+                  event.target.value === 'overall'
+                    ? 'overall'
+                    : (Number(event.target.value) as InstagramAnalyticsRange),
                 );
               }}
             >
               {ranges.map((range) => (
                 <option key={range} value={range}>
-                  Last {range} days
+                  {range === 'overall'
+                    ? 'Overall'
+                    : `Last ${String(range)} days`}
                 </option>
               ))}
             </select>
@@ -150,20 +155,98 @@ export function InstagramDashboard({
             </section>
 
             <section
-              className="kpi-grid"
-              aria-label="Key performance indicators"
+              className="outreach-analysis"
+              aria-labelledby="outreach-analysis-heading"
             >
-              <KpiCard label="Views" value={analytics.metrics.views} />
-              <KpiCard label="Reach" value={analytics.metrics.reach} />
-              <KpiCard
-                label="Accounts engaged"
-                value={analytics.metrics.accountsEngaged}
-              />
-              <KpiCard
-                label="Total interactions"
-                value={analytics.metrics.totalInteractions}
-              />
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Performance guidance</p>
+                  <h2 id="outreach-analysis-heading">
+                    Outreach recommendations
+                  </h2>
+                </div>
+                <span className="sample-badge">
+                  {analytics.analysis.sampleSize} posts analyzed
+                </span>
+              </div>
+              <p className="analysis-summary">{analytics.analysis.summary}</p>
+              {analytics.analysis.status === 'insufficient_data' ? (
+                <p className="analytics-state">
+                  Keep publishing and check again when this range contains at
+                  least four posts.
+                </p>
+              ) : (
+                <div className="analysis-grid">
+                  <div className="pattern-list">
+                    <h3>What is working</h3>
+                    {analytics.analysis.patterns.length === 0 ? (
+                      <p className="muted">
+                        Performance is balanced across the tested formats and
+                        times. Keep collecting data before changing direction.
+                      </p>
+                    ) : (
+                      analytics.analysis.patterns.map((pattern) => (
+                        <article
+                          className="pattern-card"
+                          key={`${pattern.type}-${pattern.title}`}
+                        >
+                          <span>{pattern.type}</span>
+                          <h4>{pattern.title}</h4>
+                          <p>{pattern.evidence}</p>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                  <div className="recommendation-list">
+                    <h3>What to do next</h3>
+                    {analytics.analysis.recommendations.length === 0 ? (
+                      <p className="muted">
+                        No change is recommended until a clearer advantage
+                        appears.
+                      </p>
+                    ) : (
+                      analytics.analysis.recommendations.map(
+                        (recommendation) => (
+                          <article
+                            className="recommendation-card"
+                            key={recommendation.title}
+                          >
+                            <div>
+                              <h4>{recommendation.title}</h4>
+                              <span>
+                                {recommendation.confidence} confidence
+                              </span>
+                            </div>
+                            <p>{recommendation.action}</p>
+                            <small>{recommendation.evidence}</small>
+                          </article>
+                        ),
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
+
+            {analytics.overall ? (
+              <OverallAnalytics overview={analytics.overall} />
+            ) : (
+              <section
+                className="kpi-grid"
+                aria-label="Key performance indicators"
+              >
+                <KpiCard label="Views" value={analytics.metrics.views} />
+                <KpiCard label="Reach" value={analytics.metrics.reach} />
+                <KpiCard
+                  label="Accounts engaged"
+                  value={analytics.metrics.accountsEngaged}
+                />
+                <KpiCard
+                  label="Total interactions"
+                  value={analytics.metrics.totalInteractions}
+                />
+              </section>
+            )}
 
             <section
               className="recent-media"
@@ -174,7 +257,11 @@ export function InstagramDashboard({
                   <p className="eyebrow">Content</p>
                   <h2 id="recent-media-heading">Recent media</h2>
                 </div>
-                <span className="muted">Last {analytics.rangeDays} days</span>
+                <span className="muted">
+                  {analytics.rangeDays === 'overall'
+                    ? 'All available history'
+                    : `Last ${String(analytics.rangeDays)} days`}
+                </span>
               </div>
               {analytics.recentMedia.length === 0 ? (
                 <p className="analytics-state">
@@ -214,6 +301,20 @@ export function InstagramDashboard({
                               comments
                             </span>
                           </div>
+                          {media.reach !== null || media.views !== null ? (
+                            <div className="media-card-meta">
+                              <span>
+                                {media.reach === null
+                                  ? 'Reach unavailable'
+                                  : `${numberFormatter.format(media.reach)} reached`}
+                              </span>
+                              <span>
+                                {media.views === null
+                                  ? 'Views unavailable'
+                                  : `${numberFormatter.format(media.views)} views`}
+                              </span>
+                            </div>
+                          ) : null}
                           <time dateTime={media.timestamp}>
                             {dateFormatter.format(new Date(media.timestamp))}
                           </time>
@@ -228,6 +329,96 @@ export function InstagramDashboard({
         ) : null}
       </div>
     </main>
+  );
+}
+
+function OverallAnalytics({
+  overview,
+}: {
+  overview: NonNullable<InstagramAnalyticsResponse['overall']>;
+}) {
+  const formatNames = {
+    IMAGE: 'Images',
+    VIDEO: 'Videos',
+    CAROUSEL_ALBUM: 'Carousels',
+  } as const;
+
+  return (
+    <section className="overall-analytics" aria-labelledby="overall-heading">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">All available history</p>
+          <h2 id="overall-heading">Overall content performance</h2>
+        </div>
+        <span className="sample-badge">
+          {overview.analyzedMediaCount} of {overview.totalMediaCount} posts
+        </span>
+      </div>
+      <p className="muted overall-note">
+        Instagram does not provide lifetime account reach or views. These totals
+        use the likes and comments visible on the posts analyzed.
+      </p>
+      <div className="overall-grid">
+        <KpiCard label="Total likes" value={overview.totalLikes} />
+        <KpiCard label="Total comments" value={overview.totalComments} />
+        <KpiCard
+          label="Visible interactions"
+          value={overview.totalVisibleInteractions}
+        />
+        <KpiCard
+          label="Average per post"
+          value={overview.averageVisibleInteractionsPerPost}
+        />
+      </div>
+      <div className="overall-details">
+        <article>
+          <span>Coverage</span>
+          <strong>
+            {overview.coverageComplete
+              ? 'Complete available history'
+              : 'Partial available history'}
+          </strong>
+          <p>
+            {overview.oldestMediaAt && overview.newestMediaAt
+              ? `${dateFormatter.format(new Date(overview.oldestMediaAt))}–${dateFormatter.format(new Date(overview.newestMediaAt))}`
+              : 'No media dates available'}
+          </p>
+        </article>
+        <article>
+          <span>Strongest format</span>
+          <strong>
+            {overview.strongestFormat
+              ? formatNames[overview.strongestFormat.mediaType]
+              : 'Unavailable'}
+          </strong>
+          <p>
+            {overview.strongestFormat
+              ? `${numberFormatter.format(overview.strongestFormat.averageVisibleInteractions)} average visible interactions across ${String(overview.strongestFormat.postCount)} posts`
+              : 'No posts available to compare'}
+          </p>
+        </article>
+      </div>
+      {overview.topMedia.length > 0 ? (
+        <div className="top-media-list">
+          <h3>Top posts by visible interactions</h3>
+          {overview.topMedia.map((media, index) => (
+            <a
+              href={media.permalink}
+              key={media.id}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <span>#{String(index + 1)}</span>
+              <strong>{media.caption ?? 'Untitled Instagram post'}</strong>
+              <small>
+                {numberFormatter.format(media.likeCount + media.commentsCount)}{' '}
+                interactions
+              </small>
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 

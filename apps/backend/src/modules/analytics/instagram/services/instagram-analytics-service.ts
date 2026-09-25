@@ -9,6 +9,8 @@ import {
   InstagramAnalyticsProviderError,
   type InstagramAnalyticsProvider,
 } from '../providers/instagram-analytics-provider.js';
+import { analyzeInstagramOutreach } from './instagram-outreach-analyzer.js';
+import { analyzeOverallInstagramMedia } from './instagram-overall-analyzer.js';
 
 export interface InstagramAuthorizedAccountAccess {
   getAuthorizedAccount(
@@ -48,6 +50,14 @@ export class InstagramAnalyticsService {
         },
         metrics: dashboard.metrics,
         recentMedia: dashboard.recentMedia,
+        overall:
+          rangeDays === 'overall'
+            ? analyzeOverallInstagramMedia(
+                dashboard.analysisMedia,
+                dashboard.profile.mediaCount,
+              )
+            : null,
+        analysis: analyzeInstagramOutreach(dashboard.analysisMedia),
       };
     } catch (error: unknown) {
       if (error instanceof InstagramAnalyticsProviderError) {

@@ -17,6 +17,7 @@ export interface InstagramAnalyticsProviderSnapshot {
     totalInteractions: number | null;
   };
   recentMedia: InstagramAnalyticsMedia[];
+  analysisMedia: InstagramAnalyticsMedia[];
 }
 
 export interface InstagramAnalyticsProvider {
