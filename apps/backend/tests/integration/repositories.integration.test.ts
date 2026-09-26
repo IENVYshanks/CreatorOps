@@ -8,6 +8,7 @@ import {
   createDatabaseConnection,
   type DatabaseConnection,
 } from '../../src/database/client.js';
+import { PostgresInstagramPostSentimentRepository } from '../../src/modules/comments/repositories/postgres-instagram-post-sentiment-repository.js';
 import { PostgresInstagramConnectionRepository } from '../../src/modules/connections/instagram/repositories/postgres-instagram-connection-repository.js';
 import { PostgresContentRepository } from '../../src/modules/content/repositories/postgres-content-repository.js';
 import { PostgresAuthRepository } from '../../src/modules/identity/database/postgres-auth-repository.js';
@@ -31,6 +32,7 @@ describe('PostgreSQL repositories', () => {
       '0000_dizzy_khan.sql',
       '0001_instagram_connections.sql',
       '0002_content_drafts.sql',
+      '0003_third_giant_girl.sql',
     ]) {
       const migration = await readFile(
         new URL(`../../drizzle/${migrationName}`, import.meta.url),
@@ -43,7 +45,7 @@ describe('PostgreSQL repositories', () => {
 
   beforeEach(async () => {
     await maintenancePool.query(
-      'TRUNCATE connection_oauth_states, platform_connections, workspace_memberships, workspaces, sessions, users CASCADE',
+      'TRUNCATE instagram_post_sentiments, connection_oauth_states, platform_connections, workspace_memberships, workspaces, sessions, users CASCADE',
     );
   });
 
@@ -241,5 +243,60 @@ describe('PostgreSQL repositories', () => {
     ).toMatchObject({ status: 'ready' });
     expect(await content.delete(workspace.id, created.id)).toBe(true);
     expect(await content.listForWorkspace(workspace.id)).toEqual([]);
+  });
+
+  it('inserts and replaces an Instagram post sentiment summary', async () => {
+    const identities = new PostgresAuthRepository(connection.database);
+    const workspaces = new PostgresWorkspaceRepository(connection.database);
+    const sentiments = new PostgresInstagramPostSentimentRepository(
+      connection.database,
+    );
+    const user = await identities.createUser('creator@example.com', 'hash');
+    if (!user) throw new Error('Expected the user to be created');
+    const workspace = await workspaces.createOwnedWorkspace(
+      user.id,
+      'Creator Studio',
+    );
+
+    const commonInput = {
+      workspaceId: workspace.id,
+      instagramPostId: 'instagram-post-1',
+      postPublishedAt: new Date('2026-09-25T10:00:00.000Z'),
+    };
+    await sentiments.save({
+      ...commonInput,
+      positiveCount: 6,
+      neutralCount: 3,
+      negativeCount: 1,
+      totalComments: 10,
+      analyzedAt: new Date('2026-09-26T10:00:00.000Z'),
+    });
+    await sentiments.save({
+      ...commonInput,
+      positiveCount: 8,
+      neutralCount: 3,
+      negativeCount: 1,
+      totalComments: 12,
+      analyzedAt: new Date('2026-09-26T11:00:00.000Z'),
+    });
+
+    const stored = await maintenancePool.query<{
+      positive_count: number;
+      neutral_count: number;
+      negative_count: number;
+      total_comments: number;
+      analyzed_at: Date;
+    }>(
+      'SELECT positive_count, neutral_count, negative_count, total_comments, analyzed_at FROM instagram_post_sentiments',
+    );
+    expect(stored.rows).toEqual([
+      {
+        positive_count: 8,
+        neutral_count: 3,
+        negative_count: 1,
+        total_comments: 12,
+        analyzed_at: new Date('2026-09-26T11:00:00.000Z'),
+      },
+    ]);
   });
 });
